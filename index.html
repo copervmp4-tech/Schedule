@@ -213,7 +213,7 @@
     /* svh：固定高度、不隨網址列收合重排；縫隙由同色場景背景補上 */
     .scene-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
     .hero-scene { height: 175svh; }
-    .overview-scene { height: 440svh; background: var(--surface-soft); }
+    .overview-scene { height: 440svh; background: var(--paper); }
     .chapter-scene { height: 155svh; }
     .story-static .scene { height: auto !important; }
     .story-static .scene-stage { position: relative; height: auto; min-height: 100svh; }
@@ -508,9 +508,9 @@
     .story-motion .hero-image,
     .story-motion .view.is-active .city-intro-image { transition: none; }
 
-    /* Scene 1：單一可逆 scrub 的電影式序幕（背景與舞台同漸層，縫隙無感） */
+    /* Scene 1：單一可逆 scrub 的電影式序幕 */
     .hero-scene.hero-story {
-      height: 185svh; background: linear-gradient(145deg, #182a35, #274450 62%, #3d616d);
+      height: 185svh; background: var(--surface-soft);
     }
     .js:not(.story-static) .hero-route-line { opacity: 0; }
     .hero-sequence-stage {
@@ -518,6 +518,7 @@
       position: sticky; top: 0; height: 100svh; min-height: 100svh;
       display: block; overflow: hidden; transform-origin: center center;
       background: linear-gradient(145deg, #182a35, #274450 62%, #3d616d);
+      will-change: transform, border-radius;
     }
     .hero-sequence-stage .hero-image { transform: scale(1.1); }
     .js:not(.story-static) .hero-sequence-stage .hero-image.is-ready { opacity: .3; }
@@ -574,7 +575,7 @@
     .js:not(.story-static) .hero-sequence-stage :is(.hero-reveal, .route-node) { opacity: 0; }
 
     /* Scene 3：四個獨立城市章節 */
-    .chapter-scene.city-intro-scene { height: 245svh; color: #fff; background: var(--chapter-bg); }
+    .chapter-scene.city-intro-scene { height: 245svh; color: #fff; background: var(--paper); }
     .city-intro-stage {
       --stage-pad: max(clamp(20px, 5vw, 72px), var(--safe-left), var(--safe-right));
       position: sticky; top: 0; isolation: isolate; height: 100svh; min-height: 100svh;
@@ -2588,7 +2589,7 @@
         heroTl
           .to(nodes, { autoAlpha: 1, stagger: .17, duration: .28 }, .82)
           .to(nodeDots, { scale: 1, stagger: .17, duration: .28 }, .82)
-          .to({}, { duration: .58 }, 2.25)
+          .to(stage, { scale: .94, borderRadius: 28, duration: .58 }, 2.25)
           .to({}, { duration: .18 });
       }
 
@@ -2830,12 +2831,12 @@
               if (matchMedia("(max-height: 520px) and (orientation: landscape)").matches) return key === "athens" ? .24 : .34;
               return matchMedia("(max-width: 899px)").matches ? (key === "athens" ? .34 : .42) : config.desktopTitleScale;
             },
-            duration: .5
+            duration: .6
           }, handoffStart + .18)
-          .to(handoff, { autoAlpha: 1, y: 0, duration: .3 }, handoffStart + .34)
-          .addLabel("exit", 3.36)
-          .to({}, { duration: .34 }, 3.36)
-          .to({}, { duration: .04 }, 3.7);
+          .to(handoff, { autoAlpha: 1, y: 0, duration: .32 }, handoffStart + .4)
+          .addLabel("exit", 3.28)
+          .to(stage, { scale: config.exitScale, borderRadius: config.radius, duration: .34 }, 3.28)
+          .to({}, { duration: .04 }, 3.62);
 
         routeLabelTimes.forEach((time, itemIndex) => {
           if (itemIndex > 0) {
