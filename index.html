@@ -362,19 +362,6 @@
     .segment-btn[aria-selected="true"] { color: var(--navy-950); background: var(--white); }
     .map-frame { min-height: 300px; }
     .map-frame iframe { display: block; width: 100%; min-height: 300px; border: 0; }
-    .map-load-btn {
-      display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center;
-      width: 100%; height: 100%; min-height: inherit; padding: 20px; border: 0; cursor: pointer;
-      color: #45616b; background:
-        radial-gradient(circle at 30% 35%, rgba(83, 118, 128, .1), transparent 42%),
-        radial-gradient(circle at 72% 68%, rgba(83, 118, 128, .08), transparent 46%),
-        #e9edef;
-      font: inherit; font-size: .88rem; font-weight: 700;
-    }
-    .map-load-btn:hover { color: var(--navy-950); }
-    .map-load-btn:focus-visible { outline: 3px solid var(--aegean); outline-offset: -3px; }
-    .map-load-btn svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .map-load-btn small { color: var(--muted); font-size: .74rem; font-weight: 400; }
     .route-stops { padding: 14px 16px 16px; background: var(--white); }
     .route-stops ol { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: stop; }
     .route-stops li { counter-increment: stop; display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border-radius: 999px; background: var(--surface-tint); font-size: .82rem; }
@@ -1059,14 +1046,6 @@
     html.theme-dark .event-actions .mini-btn:not(.primary) { color: #9fb6bd; }
     html.theme-dark .map-card { background: #131c23; border-color: var(--line); }
     html.theme-dark .route-stops { background: #141f27; }
-    html.theme-dark .map-load-btn {
-      color: #a9bcc3;
-      background:
-        radial-gradient(circle at 30% 35%, rgba(139, 166, 175, .12), transparent 42%),
-        radial-gradient(circle at 72% 68%, rgba(139, 166, 175, .09), transparent 46%),
-        #1a2630;
-    }
-    html.theme-dark .map-load-btn:hover { color: var(--ink); }
     html.theme-dark .event::before { border-color: #141f27; }
     html.theme-dark .event-details { color: #a7b6bd; }
     html.theme-dark .badge { color: #a5b5bc; }
@@ -1666,12 +1645,6 @@
       return `https://maps.google.com/maps?${params.toString()}`;
     };
     const mapIframeMarkup = (day, route) => `<iframe src="${h(mapsEmbedUrl(route))}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen title="${h(day.displayDate)} ${h(route.label)} Google Maps ${routeModeLabel(route)}路線"></iframe>`;
-    const mapPlaceholderMarkup = () => `
-      <button class="map-load-btn" type="button" data-map-load>
-        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28s9-8.1 9-15a9 9 0 1 0-18 0c0 6.9 9 15 9 15Z"></path><circle cx="16" cy="13" r="3.4"></circle></svg>
-        載入路線地圖
-        <small>點一下才載入 Google Maps，瀏覽更省流量</small>
-      </button>`;
 
     const chapterOrder = ["istanbul", "athens", "mykonos", "santorini"];
 
@@ -1941,7 +1914,7 @@
         <div class="segment-tabs" role="tablist" aria-label="${h(day.displayDate)} 路線分段">
           ${day.routes.map((segment, index) => `<button class="segment-btn" id="route-tab-${dayIndex}-${index}" type="button" role="tab" aria-selected="${index === 0}" aria-controls="route-panel-${dayIndex}" tabindex="${index === 0 ? "0" : "-1"}" data-day-index="${dayIndex}" data-route-index="${index}">${h(segment.label)}</button>`).join("")}
         </div>` : "";
-      const frame = mapPlaceholderMarkup();
+      const frame = mapIframeMarkup(day, route);
       return `
         <section class="map-card" aria-labelledby="map-title-${dayIndex}" data-map-card="${dayIndex}" data-active-route-index="0">
           <div class="map-top">
@@ -2086,7 +2059,7 @@
       stopList.innerHTML = renderRouteStops(dayIndex, routeIndex, timelineDriven ? 0 : focusedStop);
       stopList.style.setProperty("--route-stop-progress", "0");
       card.querySelector("[data-route-link]").href = mapsRouteUrl(route);
-      card.querySelector("[data-map-frame]").innerHTML = card.dataset.mapLoaded === "true" ? mapIframeMarkup(day, route) : mapPlaceholderMarkup();
+      card.querySelector("[data-map-frame]").innerHTML = mapIframeMarkup(day, route);
     };
 
     const updateDayFocus = (day, event, immediate = false) => {
@@ -2407,16 +2380,6 @@
         }
         const segment = event.target.closest(".segment-btn");
         if (segment) updateMapSegment(segment);
-        const mapLoad = event.target.closest("[data-map-load]");
-        if (mapLoad) {
-          const card = mapLoad.closest("[data-map-card]");
-          const day = tripDays[Number(card?.dataset.mapCard)];
-          const route = day?.routes?.[Number(card?.dataset.activeRouteIndex || 0)];
-          if (card && route) {
-            card.dataset.mapLoaded = "true";
-            card.querySelector("[data-map-frame]").innerHTML = mapIframeMarkup(day, route);
-          }
-        }
         if (event.target.closest("[data-weather-retry]")) loadWeather();
         const journeyMenu = document.querySelector(".journey-menu");
         if (event.target.closest(".journey-popover a")) journeyMenu?.removeAttribute("open");
