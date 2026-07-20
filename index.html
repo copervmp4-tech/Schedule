@@ -12,6 +12,9 @@
   <meta name="apple-mobile-web-app-title" content="Greece 2026">
   <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
   <link rel="preconnect" href="https://maps.google.com">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <title>Greece 2026｜15 天愛琴海旅程</title>
   <script>
     document.documentElement.classList.add("js");
@@ -182,7 +185,7 @@
       padding: 108px 20px 40px; display: grid; gap: 18px; justify-items: start;
     }
     .hero-overline { margin: 0; color: var(--aegean-light); font-size: .72rem; font-weight: 760; letter-spacing: .18em; text-transform: uppercase; }
-    .hero h1 { margin: 0; font-size: clamp(3.4rem, 16.5vw, 8.6rem); line-height: .88; letter-spacing: -.055em; font-weight: 770; }
+    .hero h1 { margin: 0; }
     .hero-subtitle { margin: 0; color: rgba(255, 255, 255, .84); font-size: clamp(1.05rem, 4vw, 1.9rem); letter-spacing: -.02em; }
     .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; }
     .hero-meta span { padding: 6px 12px; border: 1px solid rgba(255, 255, 255, .2); border-radius: 999px; background: rgba(255, 255, 255, .08); font-size: .8rem; }
@@ -206,15 +209,13 @@
     .section-head { max-width: 760px; margin-bottom: 34px; }
     .kicker { margin: 0 0 8px; color: var(--aegean); font-weight: 760; font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; }
     h2 { margin: 0; font-size: clamp(2.1rem, 7.5vw, 4.6rem); line-height: 1.02; letter-spacing: -.05em; }
-    .lead { margin: 18px 0 0; color: var(--muted); font-size: 1.05rem; }
+    .lead { margin: 18px 0 0; color: var(--muted); }
 
     /* ---------- Apple 式捲動場景骨架 ---------- */
     .scene { position: relative; }
-    /* svh：固定高度、不隨網址列收合重排；縫隙由同色場景背景補上 */
+    /* svh：固定高度、不隨網址列收合重排 */
     .scene-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
-    .hero-scene { height: 175svh; }
     .overview-scene { height: 440svh; background: var(--paper); }
-    .chapter-scene { height: 155svh; }
     .story-static .scene { height: auto !important; }
     .story-static .scene-stage { position: relative; height: auto; min-height: 100svh; }
 
@@ -229,14 +230,13 @@
     .overview-head-copy { min-width: 0; }
     .overview-kicker-mask, .overview-title-mask, .overview-city-mask { overflow: hidden; }
     .overview-title-line { display: block; }
-    .overview-head h2 { font-size: clamp(1.4rem, 4.2vw, 2.2rem); letter-spacing: -.035em; }
     .overview-note { display: none; margin: 0; max-width: 250px; color: rgba(20, 32, 42, .55); font-size: .78rem; text-align: right; }
     .overview-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 15px; }
     .overview-copy { position: relative; flex: 0 0 auto; min-height: clamp(224px, 29svh, 250px); }
     .overview-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
     .overview-eyebrow { margin: 0; color: var(--aegean); font-size: .73rem; font-weight: 760; letter-spacing: .13em; text-transform: uppercase; }
     .overview-city-mask { width: 100%; padding-block: .06em .24em; }
-    .overview-state h3 { margin: 0; font-size: clamp(2.6rem, 12vw, 5.4rem); font-weight: 680; line-height: .9; letter-spacing: -.055em; overflow-wrap: anywhere; }
+    .overview-state h3 { margin: 0; }
     .overview-detail { display: grid; justify-items: start; gap: 7px; }
     .overview-stay { margin: 2px 0 0; font-weight: 700; font-size: .9rem; }
     .overview-stay span { margin-right: 10px; color: rgba(20, 32, 42, .5); font-size: .68rem; font-weight: 760; letter-spacing: .12em; text-transform: uppercase; }
@@ -305,9 +305,9 @@
       padding: 116px 20px 34px; display: grid; gap: 13px; justify-items: start;
     }
     .chapter-kicker { margin: 0; color: var(--aegean-light); font-size: .72rem; font-weight: 760; letter-spacing: .17em; text-transform: uppercase; }
-    .chapter-hero h2 { margin: 0; font-size: clamp(2.9rem, 13.5vw, 7.4rem); line-height: .92; letter-spacing: -.055em; overflow-wrap: anywhere; }
+    .chapter-hero h2 { margin: 0; overflow-wrap: anywhere; }
     .chapter-meta { display: flex; flex-wrap: wrap; gap: 5px 18px; margin: 0; color: rgba(255, 255, 255, .8); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
-    .chapter-summary { margin: 0; max-width: 560px; color: rgba(255, 255, 255, .92); font-size: clamp(.98rem, 1.6vw, 1.2rem); text-shadow: 0 2px 16px rgba(0, 0, 0, .45); }
+    .chapter-summary { margin: 0; max-width: 560px; color: rgba(255, 255, 255, .92); text-shadow: 0 2px 16px rgba(0, 0, 0, .45); }
 
     /* ---------- 日期快速導覽（毛玻璃，較高透明度） ---------- */
     .date-nav-wrap {
@@ -338,7 +338,7 @@
     .day.is-today { border: 2px solid var(--aegean); box-shadow: 0 20px 70px rgba(68, 93, 105, .12); }
     .day-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
     .day-number { margin: 0 0 6px; color: var(--aegean); font-weight: 760; font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; }
-    .day h3 { margin: 0; font-size: clamp(1.5rem, 6vw, 2.6rem); line-height: 1.12; letter-spacing: -.035em; }
+    .day h3 { margin: 0; }
     .day-meta { margin: 8px 0 0; color: var(--muted); font-size: .92rem; }
     .today-pill { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; color: var(--success); background: #edf3f2; font-weight: 700; font-size: .82rem; }
 
@@ -349,11 +349,11 @@
     .place-feature .media-overlay { background: linear-gradient(0deg, rgba(3, 12, 24, .76), rgba(3, 12, 24, .06) 68%); }
     .place-feature figcaption { position: absolute; z-index: 2; left: 18px; right: 18px; bottom: 16px; }
     .place-feature figcaption span { display: block; margin-bottom: 4px; opacity: .76; font-size: .7rem; font-weight: 760; letter-spacing: .15em; text-transform: uppercase; }
-    .place-feature figcaption strong { display: block; font-size: clamp(1.15rem, 3vw, 1.7rem); line-height: 1.15; letter-spacing: -.02em; }
+    .place-feature figcaption strong { display: block; }
 
     .map-card { overflow: hidden; margin-bottom: 22px; border-radius: var(--radius-md); background: #e9edef; border: 1px solid var(--line); }
     .map-top { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #40606a; color: var(--white); }
-    .map-top h4 { margin: 0; font-size: .98rem; }
+    .map-top h4 { margin: 0; }
     .segment-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
     .segment-btn {
       min-height: 44px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .2); border-radius: 999px;
@@ -376,7 +376,7 @@
       border: 3px solid var(--white); border-radius: 50%; background: var(--aegean); box-shadow: 0 0 0 1px var(--line);
     }
     .event-time { margin: 0; color: var(--aegean); font-size: .78rem; font-weight: 760; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
-    .event h4 { margin: 3px 0 0; font-size: 1.04rem; line-height: 1.45; }
+    .event h4 { margin: 3px 0 0; }
     .event-card { padding: 0 0 18px; border-bottom: 1px solid var(--line); }
     .event:last-child { padding-bottom: 0; }
     .event:last-child .event-card { border-bottom: 0; padding-bottom: 0; }
@@ -408,7 +408,7 @@
     .practical-intro .notice-bar { width: 100%; margin: 0; align-self: end; }
     .practical-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
     .panel { padding: 22px 20px; border: 1px solid rgba(20, 32, 42, .08); border-radius: var(--radius-lg); background: var(--white); box-shadow: 0 1px 0 rgba(7, 21, 40, .03), 0 14px 34px rgba(7, 21, 40, .055); }
-    .panel h3 { margin: 0 0 16px; font-size: 1.3rem; letter-spacing: -.02em; }
+    .panel h3 { margin: 0 0 16px; }
     .booking-list { display: grid; gap: 10px; }
     .booking-item { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; align-items: start; padding: 13px; border-radius: 14px; background: #f3f5f4; cursor: pointer; }
     .booking-item input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--success); }
@@ -459,24 +459,17 @@
       .hero-inner { padding: 150px 20px 56px; gap: 22px; }
       .section { padding: 104px 0; }
       .section-head { margin-bottom: 44px; }
-      .hero-scene { height: 200svh; }
-      .overview-scene { height: 460svh; }
-      .chapter-scene { height: 175svh; }
       .overview-stage { padding: calc(var(--header-h) + 26px) max(20px, calc((100vw - var(--content)) / 2)) 30px; gap: 22px; }
-      .overview-head h2 { font-size: clamp(1.6rem, 2.4vw, 2.6rem); }
       .overview-note { display: block; }
       .overview-body { flex-direction: row; align-items: stretch; gap: clamp(20px, 2.3vw, 34px); }
       .overview-copy { flex: 0 0 41%; align-self: center; min-height: 0; height: min(500px, 60vh); }
       .overview-media { flex: 1; min-height: 0; border-radius: 32px; }
-      .overview-state h3 { font-size: clamp(3.4rem, 6.5vw, 7rem); }
-      .overview-rail { gap: 0; }
       .notice-bar { flex-direction: row; gap: 12px; align-items: flex-start; }
       .view-practical .section { padding-top: calc(var(--header-h) + 58px); }
       .practical-intro { grid-template-columns: minmax(0, 1.3fr) minmax(320px, .7fr); align-items: end; gap: clamp(28px, 4vw, 56px); margin-bottom: 46px; }
       .chapter-hero-copy { padding: 150px 20px 48px; gap: 16px; }
       .chapter-days { padding: 56px 0 36px; }
       .day { margin-bottom: 30px; padding: 36px; border-radius: var(--radius-xl); }
-      .day h3 { line-height: 1.08; }
       .place-feature { min-height: 300px; margin-bottom: 30px; }
       .place-feature figcaption { left: 24px; right: 24px; bottom: 20px; }
       .map-card { margin-bottom: 30px; }
@@ -530,15 +523,11 @@
     }
     .hero-sequence-stage h1 {
       width: max-content; max-width: 100%; margin: 0; color: #fff;
-      font-size: clamp(5rem, 13vw, 12rem); font-weight: 770; line-height: .78;
-      letter-spacing: -.09em; transform-origin: left center;
+      transform-origin: left center;
     }
     .hero-sequence-stage h1 span { display: block; }
     .hero-subtitle-mask { overflow: hidden; margin-top: 30px; }
-    .hero-sequence-stage .hero-subtitle {
-      margin: 0; color: rgba(255, 255, 255, .86); font-size: clamp(1.25rem, 2.45vw, 2.4rem);
-      line-height: 1.16; letter-spacing: -.035em;
-    }
+    .hero-sequence-stage .hero-subtitle { margin: 0; color: rgba(255, 255, 255, .86); }
     .hero-story-meta {
       position: absolute; z-index: 3; top: 16%; right: var(--stage-pad); width: min(380px, 35vw);
       display: grid; gap: 20px; color: #fff; text-align: right;
@@ -594,14 +583,13 @@
     }
     .city-intro-stage .city-intro-title {
       position: static; margin: 0; max-width: 100%; color: #fff;
-      font-size: clamp(5rem, 12vw, 11rem); line-height: .8; letter-spacing: -.085em;
       overflow-wrap: normal; word-break: normal;
       text-shadow: 0 2px 26px rgba(0, 0, 0, .5), 0 1px 4px rgba(0, 0, 0, .35);
     }
     .city-intro-title-line { display: block; width: max-content; max-width: 100%; }
     .city-intro-title-line + .city-intro-title-line { margin-top: .07em; }
     .city-intro-dock { position: absolute; z-index: -1; top: calc(var(--header-h) + 28px); left: var(--stage-pad); width: 1px; height: 1px; pointer-events: none; }
-    .city-intro-summary { position: absolute; z-index: 3; left: var(--stage-pad); bottom: 16%; max-width: 620px; margin: 0; color: rgba(255, 255, 255, .94); font-size: clamp(1rem, 1.6vw, 1.35rem); text-wrap: balance; text-shadow: 0 2px 18px rgba(0, 0, 0, .58); }
+    .city-intro-summary { position: absolute; z-index: 3; left: var(--stage-pad); bottom: 16%; max-width: 620px; margin: 0; color: rgba(255, 255, 255, .94); text-wrap: balance; text-shadow: 0 2px 18px rgba(0, 0, 0, .58); }
     .city-intro-route { position: absolute; z-index: 3; left: var(--stage-pad); bottom: 6%; width: min(620px, 55vw); min-height: 62px; }
     .city-intro-route-guide,
     .city-intro-route-line { position: absolute; top: 12px; left: 16.666%; width: 66.666%; height: 1px; transform-origin: left center; pointer-events: none; }
@@ -642,7 +630,7 @@
     .day-shell { display: grid; grid-template-columns: minmax(360px, .76fr) minmax(0, 1.24fr); gap: clamp(42px, 6vw, 86px); align-items: start; }
     .day-stage { position: sticky; top: 132px; display: grid; gap: 16px; max-height: calc(100svh - 150px); }
     .day-explorer .day-head { display: block; margin: 0; }
-    .day-explorer .day-head h3 { max-width: 610px; font-size: clamp(2rem, 3.6vw, 4rem); }
+    .day-explorer .day-head h3 { max-width: 610px; }
     .day-explorer .today-pill { margin-top: 12px; }
     .day-focus-readout {
       position: relative;
@@ -718,12 +706,11 @@
     }
 
     @media (max-width: 899px) {
-      .overview-scene { height: 440svh; }
       .overview-body { display: grid; grid-template-rows: clamp(224px, 29svh, 250px) minmax(220px, 1fr); gap: 12px; }
       .overview-copy { width: auto; height: auto; min-height: 0; align-self: stretch; }
       .overview-media { min-height: 0; border-radius: 22px; }
       .hero-sequence-stage .hero-inner { left: 20px; top: 41%; width: calc(100% - 40px); }
-      .hero-sequence-stage h1 { width: auto; font-size: clamp(4rem, 19vw, 5.25rem); line-height: .82; letter-spacing: -.075em; }
+      .hero-sequence-stage h1 { width: auto; }
       .hero-sequence-stage .hero-overline { max-width: 270px; }
       .hero-story-meta { top: auto; left: 20px; right: 20px; bottom: 20%; width: auto; gap: 10px; text-align: left; }
       .hero-date, .hero-destinations { justify-content: flex-start; }
@@ -737,7 +724,7 @@
       .city-intro-edge span:nth-child(2), .city-intro-edge span:last-child { justify-self: start; max-width: min(78vw, 320px); text-align: left; }
       .city-intro-label { left: 20px; top: 25%; }
       .city-intro-title-mask { left: 20px; top: 38%; width: calc(100% - 40px); }
-      .city-intro-stage .city-intro-title { max-width: none; font-size: clamp(4.3rem, 20vw, 7rem); }
+      .city-intro-stage .city-intro-title { max-width: none; }
       .city-intro-summary { left: 20px; right: 20px; bottom: 20%; max-width: none; }
       .city-intro-route { left: 20px; bottom: 5%; width: calc(100% - 40px); }
       .city-intro-dock { left: 20px; }
@@ -747,7 +734,6 @@
       .day.day-explorer { padding: 60px 0 90px; }
       .day-shell { display: block; }
       .day-stage { position: relative; top: auto; max-height: none; }
-      .day-explorer .day-head h3 { font-size: clamp(1.8rem, 8vw, 3rem); }
       .day-explorer :is(.map-frame, .map-frame iframe) { min-height: 270px; height: 270px; }
       .day-explorer .route-stops { max-height: none; overflow: visible; }
       .day-timeline { margin-top: 38px; }
@@ -756,7 +742,6 @@
 
     @media (max-width: 520px) {
       .journey-popover { position: fixed; top: calc(var(--header-h) + 8px); left: 12px; right: 12px; width: auto; }
-      .hero-sequence-stage h1 { font-size: clamp(3.75rem, 18vw, 5rem); }
       .route-node circle { r: 11; }
       .route-node text { font-size: 24px; }
       .hero-date { flex-direction: column; gap: 2px; }
@@ -765,7 +750,6 @@
     }
 
     @media (max-height: 520px) and (orientation: landscape) {
-      .overview-scene { height: 440svh; }
       .chapter-scene.city-intro-scene { height: 230svh; }
       .overview-stage { padding: calc(var(--header-h) + 8px) 20px 12px; gap: 9px; }
       .overview-head h2 { font-size: 1.35rem; }
@@ -778,10 +762,8 @@
       .overview-step { min-height: 48px; padding-top: 20px; }
       .overview-step-node { top: 9px; }
       .hero-sequence-stage .hero-inner { top: 50%; width: 54%; }
-      .hero-sequence-stage h1 { font-size: clamp(3.6rem, 9.5vw, 5rem); }
       .hero-sequence-stage .hero-overline { display: none; }
       .hero-subtitle-mask { margin-top: 16px; }
-      .hero-sequence-stage .hero-subtitle { font-size: clamp(1rem, 2.25vw, 1.25rem); }
       .hero-story-meta {
         top: 82px; left: auto; right: 20px; bottom: auto; width: min(320px, 39vw);
         gap: 8px; text-align: right;
@@ -795,7 +777,6 @@
       .city-intro-edge { top: 84px; display: flex; gap: 16px; }
       .city-intro-label { top: 31%; }
       .city-intro-title-mask { left: 20px; top: 43%; width: 55%; }
-      .city-intro-stage .city-intro-title { font-size: clamp(3.8rem, 11vw, 6rem); }
       .city-intro-summary { left: 20px; bottom: 7%; max-width: 52%; }
       .city-intro-route { left: auto; right: 20px; bottom: 5%; width: 43%; }
       .city-intro-route-step strong { font-size: .64rem; }
@@ -2981,6 +2962,13 @@
     handleRoute();
     initStoryScenes();
     scheduleStoryRefresh();
+
+    // 部署在 http(s) 時註冊離線快取；本機單檔開啟（file://）自動略過
+    if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }, { once: true });
+    }
   </script>
 <script type="text/plain" id="embedded-image-credits" data-source="IMAGE_CREDITS.md">
 # 圖片來源與授權紀錄
