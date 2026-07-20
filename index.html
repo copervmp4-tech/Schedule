@@ -50,6 +50,9 @@
       --header-h: calc(64px + var(--safe-top));
 
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      --font-display: "Space Grotesk", var(--font-sans);
+      --terra: #96622f;
+      --terra-soft: #f5ead8;
       --weight-regular: 400;
       --weight-medium: 600;
       --weight-bold: 700;
@@ -81,13 +84,25 @@
       --leading-compact: 1.48;
       --leading-meta: 1.35;
 
-      --tracking-hero: -.09em;
-      --tracking-city: -.075em;
-      --tracking-display: -.055em;
+      --tracking-hero: -.045em;
+      --tracking-city: -.04em;
+      --tracking-display: -.03em;
       --tracking-heading-zh: -.025em;
-      --tracking-subtitle-en: -.03em;
+      --tracking-subtitle-en: -.015em;
       --tracking-eyebrow-en: .16em;
       --tracking-meta-en: .08em;
+    }
+
+    /* Space Grotesk（僅拉丁子集，用於英文大標與標籤） */
+    @font-face {
+      font-family: "Space Grotesk";
+      font-style: normal; font-weight: 500; font-display: swap;
+      src: url(data:font/woff2;base64,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) format("woff2");
+    }
+    @font-face {
+      font-family: "Space Grotesk";
+      font-style: normal; font-weight: 700; font-display: swap;
+      src: url(data:font/woff2;base64,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) format("woff2");
     }
 
     * { box-sizing: border-box; }
@@ -340,7 +355,7 @@
     .day-number { margin: 0 0 6px; color: var(--aegean); font-weight: 760; font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; }
     .day h3 { margin: 0; }
     .day-meta { margin: 8px 0 0; color: var(--muted); font-size: .92rem; }
-    .today-pill { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; color: var(--success); background: #edf3f2; font-weight: 700; font-size: .82rem; }
+    .today-pill { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 36px; padding: 0 12px; border-radius: 999px; color: var(--terra); background: var(--terra-soft); font-weight: 700; font-size: .82rem; }
 
     .place-feature {
       position: relative; isolation: isolate; min-height: 210px; overflow: hidden; margin: 0 0 22px;
@@ -383,7 +398,7 @@
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
     .badge { display: inline-flex; align-items: center; min-height: 25px; padding: 2px 8px; border-radius: 999px; color: #43515a; background: var(--surface-tint); font-size: .7rem; font-weight: 720; }
     .badge.status { color: #526971; background: #edf1f2; }
-    .badge.booked { color: #4f6968; background: #edf3f2; }
+    .badge.booked { color: var(--terra); background: var(--terra-soft); }
     .event-details { margin-top: 9px; color: #4e5a63; font-size: .92rem; }
     .event-details ul { margin: 0; padding-left: 1.15rem; }
     .event-details li + li { margin-top: 4px; }
@@ -409,6 +424,12 @@
     .practical-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
     .panel { padding: 22px 20px; border: 1px solid rgba(20, 32, 42, .08); border-radius: var(--radius-lg); background: var(--white); box-shadow: 0 1px 0 rgba(7, 21, 40, .03), 0 14px 34px rgba(7, 21, 40, .055); }
     .panel h3 { margin: 0 0 16px; }
+    .confirmed-list { display: grid; gap: 18px; }
+    .confirmed-group h4 { margin: 0 0 6px; color: var(--terra); font-size: .72rem; font-weight: 760; letter-spacing: .13em; text-transform: uppercase; font-family: var(--font-display); }
+    .confirmed-item { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+    .confirmed-when { display: grid; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+    .confirmed-when em { font-style: normal; font-size: .73rem; }
+    .confirmed-name small { color: var(--muted); font-size: .78rem; }
     .booking-list { display: grid; gap: 10px; }
     .booking-item { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; align-items: start; padding: 13px; border-radius: 14px; background: #f3f5f4; cursor: pointer; }
     .booking-item input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--success); }
@@ -916,7 +937,20 @@
     }
     .label-zh { letter-spacing: 0; text-transform: none; }
     [lang="en"] { font-feature-settings: "kern" 1, "liga" 1; }
-    .hero-route :is(text) { font-family: var(--font-sans); font-weight: var(--weight-medium); }
+    .hero-route :is(text) { font-family: var(--font-display); font-weight: 500; }
+
+    /* ---------- 展示字體：英文大標與標籤用 Space Grotesk ---------- */
+    .brand,
+    .hero-sequence-stage h1,
+    .city-intro-stage .city-intro-title,
+    .chapter-hero h2,
+    .overview-state h3,
+    .hero-sequence-stage .hero-subtitle,
+    .hero-countdown strong,
+    :is(.hero-overline, .kicker, .overview-eyebrow, .chapter-kicker, .hero-scroll-cue, .place-feature figcaption span, .menu-list strong) {
+      font-family: var(--font-display);
+    }
+    :is(.hero-date, .city-intro-edge, .chapter-meta) { font-family: var(--font-display); font-weight: 500; }
 
     .city-mark { display: inline-block; flex: 0 0 auto; color: inherit; }
     .city-mark :is(path, circle) { vector-effect: non-scaling-stroke; }
@@ -1031,9 +1065,9 @@
     html.theme-dark .event-details { color: #a7b6bd; }
     html.theme-dark .badge { color: #a5b5bc; }
     html.theme-dark .badge.status { color: #9fb0b7; background: #1c2933; }
-    html.theme-dark .badge.booked { color: #94b3a8; background: #18272a; }
+    html.theme-dark .badge.booked { color: #dcb083; background: #2b2115; }
     html.theme-dark .menu-list strong { color: #9ab3bc; }
-    html.theme-dark .today-pill { color: #9fc4b9; background: #18272a; }
+    html.theme-dark .today-pill { color: #dcb083; background: #2b2115; }
     html.theme-dark .date-nav-wrap { background: rgba(15, 23, 29, .72); }
     html.theme-dark .date-link:hover { background: #1c2933; color: var(--ink); }
     html.theme-dark .notice-bar { border-color: rgba(120, 160, 175, .24); background: #14232b; color: #a8bcc4; }
@@ -1166,6 +1200,10 @@
             <p class="source-note">資料來源：Open-Meteo；開啟頁面時查詢當地即時天氣，出發前 15 天內會附上各城市停留日的逐日預報（高低溫、降雨機率與最大風速）。</p>
           </section>
           <div class="practical-grid">
+            <section class="panel reveal" aria-labelledby="confirmed-title">
+              <h3 id="confirmed-title">已預訂總覽</h3>
+              <div class="confirmed-list" id="confirmedList"></div>
+            </section>
             <section class="panel reveal" aria-labelledby="booking-title">
               <h3 id="booking-title">預訂清單</h3>
               <div class="booking-list" id="bookingList"></div>
@@ -1326,7 +1364,7 @@
           R("夜間散步", "walking", ["Dedeman Istanbul Hotel, Istanbul, Türkiye", "Oklava Taze Makarna, Istanbul, Türkiye", "Abdi İpekçi Caddesi, Nişantaşı, Istanbul, Türkiye"])
         ],
         items: [
-          I("09:35–17:10", "台北 (TPE) → 伊斯坦堡 (IST) TK125", "航班", "台灣護照須辦土耳其 e-Visa（evisa.gov.tr）：多次入境、效期 180 天；六月那張仍在效期內即可沿用。", "", "", "重要提醒"),
+          I("09:35–17:10", "台北 (TPE) → 伊斯坦堡 (IST) TK125", "航班", "台灣護照須辦土耳其 e-Visa（evisa.gov.tr）：多次入境、效期 180 天；六月那張仍在效期內即可沿用。", "", "", "已預訂"),
           I("17:10–18:20", "入境與領行李", "提醒", "旺季晚間護照查驗約 30–50 分鐘。", "", "", "重要提醒"),
           I("18:20–19:20", "前往 Gayrettepe", "交通", "交通：依站內指標（9 或 13 號出口方向）搭 M11 地鐵至終點 Gayrettepe；含候車與航廈內步行，全程抓 55–70 分鐘。", "Gayrettepe Metro Station, Istanbul, Türkiye", "transit"),
           I("19:30–19:45", "入住 Dedeman Gayrettepe", "住宿", "", "Dedeman Istanbul Hotel, Istanbul, Türkiye", "walking"),
@@ -1361,13 +1399,13 @@
           I("08:30–09:20", "早餐：Dedeman Gayrettepe", "餐飲", "", "Dedeman Istanbul Hotel, Istanbul, Türkiye", "walking"),
           I("09:35–10:25", "前往伊斯坦堡機場", "交通", "交通：步行 8–10 分鐘至 Gayrettepe 站，搭 M11 地鐵約 35 分鐘。", "Istanbul Airport, Türkiye", "transit"),
           I("10:35–13:20", "機場報到、出境與候機", "提醒", "地鐵站至報到櫃檯步行 10–12 分鐘，登機門可能再走 15–20 分鐘；起飛前 2 小時 45 分抵達為下限。", "", "", "重要提醒"),
-          I("13:20–14:50", "伊斯坦堡 (IST) → 雅典 (ATH) TK1849", "航班"),
+          I("13:20–14:50", "伊斯坦堡 (IST) → 雅典 (ATH) TK1849", "航班", "", "", "", "已預訂"),
           I("14:50–15:50", "雅典入境", "提醒", "歐盟 EES 生體辨識已上線，首次入境申根區須登記指紋與臉部。|ETIAS 預計 2026 下半年上路，出發前上 travel-europe.europa.eu 確認。", "", "", "重要提醒"),
           I("15:50–16:50", "前往雅典市區", "交通", "交通：地鐵 M3 藍線（機場線），每 30 分鐘一班，機場段需專用票。", "The Marblous Athens, Athens, Greece", "transit"),
           I("17:00–17:40", "入住 The Marblous Athens", "住宿", "", "The Marblous Athens, Athens, Greece", "walking"),
           I("17:50–18:15", "憲法廣場 (Syntagma) 衛兵交接", "景點", "整點交接；Evzones 的流蘇鞋與慢動作步伐是招牌。", "Syntagma Square, Athens, Greece", "walking"),
           I("18:20–19:20", "國家花園沿線散策", "景點", "哈德良拱門 (Hadrian's Arch)：立在收費區外的路邊，不受遺址關門時間限制。|宙斯神廟 (Olympieion)：15 根 17 公尺高的科林斯柱，柱身面西，沿圍欄看即可。|札皮翁 (Zappeion) 與國家花園：全程樹蔭，日落即關門，此時剛好穿過。|帕納辛奈克體育場 (Panathenaic Stadium)：1896 年首屆現代奧運場地，全大理石；自 Vas. Konstantinou 大道可見全貌，19:15 起白石轉金。", "National Garden, Athens, Greece", "walking"),
-          I("19:30–21:00", "晚餐：Akra", "餐飲", "柴燒現代希臘料理|Charred Wild Greens with Sumac / 炭烤野菜佐鹽膚木|Grilled Seasonal Vegetables / 炭烤時蔬|Caramelised Milk Tart / 焦糖牛奶塔", "Akra Restaurant, Athens, Greece", "walking"),
+          I("19:30–21:00", "晚餐：Akra", "餐飲", "柴燒現代希臘料理|Charred Wild Greens with Sumac / 炭烤野菜佐鹽膚木|Grilled Seasonal Vegetables / 炭烤時蔬|Caramelised Milk Tart / 焦糖牛奶塔", "Akra Restaurant, Athens, Greece", "walking", "已預訂"),
           I("21:50–22:10", "返回飯店休息", "交通", "", "The Marblous Athens, Athens, Greece", "walking")
         ]
       },
@@ -1404,7 +1442,7 @@
           I("17:00–19:15", "雅典衛城 (Acropolis)", "景點", "酒神劇場與阿斯克勒庇俄斯聖所（30 分鐘，西方戲劇的誕生地）。|帕德嫩神廟（40 分鐘，近數十年最完整的樣貌）。|厄瑞克忒翁（20 分鐘，六尊女像柱，現場為複製品）。|東側觀景台（15 分鐘）。|自西側山門 Propylaea 下山，把最壯觀的出口留到最後。|17:00–18:00 時段票須先於 hhticket.gr 購買（€30／人），每日限額 20,000 人，旺季提前 5–7 天售完。", "Acropolis of Athens, Greece", "walking", "重要提醒"),
           I("19:20–20:20", "阿雷奧帕戈斯山丘看日落", "景點", "日落約 19:48；出口旁的免費岩丘，留至藍調時刻看衛城打燈。|進階：往西再走 10 分鐘至 Pnyx 或 Filopappou，人少十倍，構圖更好。", "Areopagus Hill, Athens, Greece", "walking", "重要提醒"),
           I("20:30–20:50", "穿過普拉卡 (Plaka) 回飯店", "交通", "沖澡換裝。", "The Marblous Athens, Athens, Greece", "walking"),
-          I("21:00–22:30", "晚餐：Ergon Agora Restaurant", "餐飲", "現代希臘食堂|Peinirli “Hunkar Begendi” / 蘇丹喜悅皮納里披薩|Smoked Chicken / 招牌木烤煙燻雞|Skopelos Cheese Pie with Honey / 斯科普洛斯蜂蜜起司派|餐廳與食材選物店一體，飯後可順手帶罐希臘蜂蜜或橄欖油。", "Ergon Agora, Athens, Greece", "walking")
+          I("21:00–22:30", "晚餐：Ergon Agora Restaurant", "餐飲", "現代希臘食堂|Peinirli “Hunkar Begendi” / 蘇丹喜悅皮納里披薩|Smoked Chicken / 招牌木烤煙燻雞|Skopelos Cheese Pie with Honey / 斯科普洛斯蜂蜜起司派|餐廳與食材選物店一體，飯後可順手帶罐希臘蜂蜜或橄欖油。", "Ergon Agora, Athens, Greece", "walking", "已預訂")
         ]
       },
       {
@@ -1424,7 +1462,7 @@
           I("16:45–18:30", "利卡維多斯山 (Lycabettus) 黃昏全景", "景點", "全雅典最高點，衛城、比雷埃夫斯港與薩羅尼克灣的島同時入鏡。|纜車 09:00–02:30，每 30 分鐘一班，單程 €7、來回 €10，現場購票。|登山步道夜間完全無照明，下山務必搭纜車。|彈性：想看夜景可留到 20:20，仍趕得上 21:00 晚餐。", "Mount Lycabettus, Athens, Greece", "walking", "重要提醒"),
           I("18:30–19:00", "下山與返回飯店", "交通", "交通：纜車下山後計程車約 8 分鐘（€6–8）。", "The Marblous Athens, Athens, Greece", "driving"),
           I("19:00–20:50", "換裝與 Plaka 黃昏自由段", "選配", "換裝收拾；飯店步行約 8 分鐘，提早出門逛巷弄。", "Plaka, Athens, Greece", "walking", "選配"),
-          I("21:00–22:30", "晚餐：Aneton", "餐飲", "現代希臘料理|Slow Cooked Beef Cheek / 慢燉牛頰肉|Sea Bass Fillet / 海鱸魚菲力|Wild Mushroom Risotto / 野生蕈菇燉飯", "Aneton Restaurant, Athens, Greece", "walking"),
+          I("21:00–22:30", "晚餐：Aneton", "餐飲", "現代希臘料理|Slow Cooked Beef Cheek / 慢燉牛頰肉|Sea Bass Fillet / 海鱸魚菲力|Wild Mushroom Risotto / 野生蕈菇燉飯", "Aneton Restaurant, Athens, Greece", "walking", "已預訂"),
           I("22:40", "返回飯店收行李", "提醒", "", "The Marblous Athens, Athens, Greece", "walking")
         ]
       },
@@ -1438,14 +1476,14 @@
         items: [
           I("07:00–07:45", "早餐：The Marblous Athens", "餐飲", "", "The Marblous Athens, Athens, Greece", "walking"),
           I("07:45–08:30", "前往比雷埃夫斯港 (Piraeus)", "交通", "交通：地鐵 M3 藍線 Syntagma → Piraeus。|於 Gate E9 櫃檯領票登船，登船口以船票標示為準。", "Piraeus Port Gate E9, Greece", "transit", "重要提醒"),
-          I("09:15–12:05", "SeaJets 高速渡輪 (Piraeus → Mykonos)", "渡輪", "前一晚查 SeaJets 停航公告。", "Piraeus Port Gate E9, Greece", "", "重要提醒"),
-          I("12:05–13:00", "入住 Nodo Boutique Hotel", "住宿", "交通：接駁直達飯店。|入住或寄放行李，換上輕便海島裝。", "Nodo Boutique Hotel, Mykonos, Greece", "driving"),
+          I("09:15–12:05", "SeaJets 高速渡輪 (Piraeus → Mykonos)", "渡輪", "前一晚查 SeaJets 停航公告。", "Piraeus Port Gate E9, Greece", "", "已預訂"),
+          I("12:05–13:00", "入住 Nodo Boutique Hotel", "住宿", "交通：接駁直達飯店。|入住或寄放行李，換上輕便海島裝。", "Nodo Boutique Hotel, Mykonos, Greece", "driving", "已預訂"),
           I("13:15–14:15", "午餐：Sakis Grill House", "餐飲", "希臘烤肉店|Pork Gyros Wrap / 豬肉旋轉烤肉捲餅|Greek Salad with Feta / 希臘費塔起司沙拉", "Sakis Grill House, Mykonos, Greece", "walking"),
           I("14:15–15:30", "咖啡：Caprice Bar", "餐飲", "海濱酒吧|Freddo Cappuccino / 希臘式冰卡布奇諾|Aperol Spritz / 艾普羅氣泡調酒", "Caprice Bar, Mykonos, Greece", "walking"),
           I("15:30–18:15", "米克諾斯鎮 (Mykonos Town)", "景點", "定位：Fabrika Square。|Matogianni Street：白牆、藍窗、九重葛的招牌街景，精品店集中在此。|帕拉波爾提亞尼教堂 (Panagia Paraportiani)：五座小教堂融成一體的雪白曲面建築，基克拉澤斯建築代表作。|小威尼斯 (Little Venice)：彩色木陽台懸在海上，浪直接打在牆腳。", "Fabrika Square, Mykonos, Greece", "walking"),
           I("18:15–19:00", "甜點：SNOW Gelato", "餐飲", "手工冰淇淋|Pistachio Gelato / 開心果冰淇淋|米克諾斯在地鮮乳製作，店後方有面海座位。", "Snow Gelato, Mykonos, Greece", "walking"),
           I("19:00–19:50", "卡托米利風車 (Kato Mili) 看日落", "景點", "日落約 19:40；五座風車正對海面，是全鎮日落正面位。", "Kato Mili, Mykonos, Greece", "walking", "重要提醒"),
-          I("20:00–21:30", "晚餐：M-eating", "餐飲", "現代希臘料理|Slow-cooked Lamb / 慢煮嫩羊羔|Sous-vide Beef Fillet / 低溫真空牛菲力|Mushroom Risotto / 牛肝菌野菇燉飯", "M-eating Restaurant, Mykonos, Greece", "walking")
+          I("20:00–21:30", "晚餐：M-eating", "餐飲", "現代希臘料理|Slow-cooked Lamb / 慢煮嫩羊羔|Sous-vide Beef Fillet / 低溫真空牛菲力|Mushroom Risotto / 牛肝菌野菇燉飯", "M-eating Restaurant, Mykonos, Greece", "walking", "已預訂")
         ]
       },
       {
@@ -1483,12 +1521,12 @@
         ],
         items: [
           I("10:00–11:00", "早餐：Nodo Boutique Hotel", "餐飲", "", "Nodo Boutique Hotel, Mykonos, Greece", "walking"),
-          I("11:15–12:20", "米克諾斯新港 (Mykonos New Port)", "交通", "交通：接駁直達港口。", "Mykonos New Port, Greece", "driving"),
-          I("12:20–14:50", "SeaJets 高速渡輪 (Mykonos → Santorini)", "渡輪", "前一晚查停航公告；若停航，改隔日早班船，後續行程依序壓縮。", "Mykonos New Port, Greece", "", "重要提醒"),
-          I("14:50–15:40", "入住 NĒRO Light-Filled Suites", "住宿", "交通：接駁直達飯店。", "NĒRO Light-Filled Suites, Imerovigli, Santorini, Greece", "driving"),
+          I("11:15–12:20", "米克諾斯新港 (Mykonos New Port)", "交通", "交通：接駁直達港口。", "Mykonos New Port, Greece", "driving", "已預訂"),
+          I("12:20–14:50", "SeaJets 高速渡輪 (Mykonos → Santorini)", "渡輪", "前一晚查停航公告；若停航，改隔日早班船，後續行程依序壓縮。", "Mykonos New Port, Greece", "", "已預訂"),
+          I("14:50–15:40", "入住 NĒRO Light-Filled Suites", "住宿", "交通：接駁直達飯店。", "NĒRO Light-Filled Suites, Imerovigli, Santorini, Greece", "driving", "已預訂"),
           I("16:00–17:00", "Skaros Rock 步道", "景點", "走到第一個觀景平台看火山口全景即可，烈日下不勉強攻頂。", "Skaros Rock, Imerovigli, Santorini, Greece", "walking"),
           I("17:20–18:45", "返回飯店休息", "交通", "換上晚宴裝，休息至晚餐。", "NĒRO Light-Filled Suites, Imerovigli, Santorini, Greece", "walking"),
-          I("19:00–20:30", "晚餐：Surupo", "餐飲", "崖邊創意地中海料理|Pan-Seared Sea Bass / 嫩煎海鱸魚佐聖托里尼蠶豆泥|Slow-Cooked Lamb Rack / 香草慢烤羊排|Mushroom Risotto with Cream Cheese / 野生蕈菇燉飯佐奶油乳酪", "Surupo Restaurant, Santorini, Greece", "walking")
+          I("19:00–20:30", "晚餐：Surupo", "餐飲", "崖邊創意地中海料理|Pan-Seared Sea Bass / 嫩煎海鱸魚佐聖托里尼蠶豆泥|Slow-Cooked Lamb Rack / 香草慢烤羊排|Mushroom Risotto with Cream Cheese / 野生蕈菇燉飯佐奶油乳酪", "Surupo Restaurant, Santorini, Greece", "walking", "已預訂")
         ]
       },
       {
@@ -1531,7 +1569,7 @@
           I("11:00–14:30", "飯店泳池避暑", "休息", "正午高溫留在泳池；行程留白也是行程。"),
           I("15:00–15:30", "甜點：Lolita's Gelato", "餐飲", "手工冰淇淋|Pistachio Gelato / 開心果義式冰淇淋|Rose Petal Sorbet / 玫瑰花瓣雪酪|Oia 排隊名店，下午常有人龍。", "Lolita's Gelato, Oia, Santorini, Greece", "walking"),
           I("15:30–18:00", "伊亞小鎮 (Oia Village)", "景點", "精品店與藝廊沿主巷排開；慢逛，挖巷弄裡的小店。", "Oia, Santorini, Greece", "walking"),
-          I("18:30–20:30", "晚餐：Dimitris Ammoudi Taverna", "餐飲", "漁港海鮮|Grilled Octopus / 炭烤章魚腳|Crispy Smelts / 酥炸小魚|Fresh Catch of the Day / 當日現撈海鮮|Ammoudi 漁港水邊第一排；下切 300 級台階，回程可叫車。", "Dimitris Ammoudi Taverna, Santorini, Greece", "walking"),
+          I("18:30–20:30", "晚餐：Dimitris Ammoudi Taverna", "餐飲", "漁港海鮮|Grilled Octopus / 炭烤章魚腳|Crispy Smelts / 酥炸小魚|Fresh Catch of the Day / 當日現撈海鮮|Ammoudi 漁港水邊第一排；下切 300 級台階，回程可叫車。", "Dimitris Ammoudi Taverna, Santorini, Greece", "walking", "已預訂"),
           I("20:30–21:00", "返回飯店休息", "交通", "交通：Aegean Taxi 返回 Finikia（€10–15）。", "Hom Santorini, Finikia, Greece", "driving")
         ]
       },
@@ -1550,7 +1588,7 @@
           I("15:00–16:15", "Fira 伴手禮採買與最後巡禮", "選配", "在白色巷弄補完紀念品清單。|選配：史前錫拉博物館 (Museum of Prehistoric Thera，約 45 分鐘)；阿克羅蒂里出土壁畫真品在此，位於 Fira 東正教主教座堂旁。", "Museum of Prehistoric Thera, Fira, Greece", "walking", "選配"),
           I("16:15–16:40", "領取行李與前往機場", "交通", "交通：領完行李，16:20 搭 Aegean Taxi 至機場（€20–25）。", "Santorini Airport, Greece", "driving"),
           I("16:40–18:40", "機場報到、安檢與候機", "提醒", "JTR 旺季擁擠，此段勿再壓縮。", "", "", "重要提醒"),
-          I("18:40–19:30", "聖托里尼 (JTR) → 雅典 (ATH) A3359", "航班"),
+          I("18:40–19:30", "聖托里尼 (JTR) → 雅典 (ATH) A3359", "航班", "", "", "", "已預訂"),
           I("19:30–20:30", "入住 Holiday Inn Athens Airport Hotel", "住宿", "交通：飯店免費機場接駁車。", "Holiday Inn Athens Airport, Greece", "driving")
         ]
       },
@@ -1565,9 +1603,38 @@
           I("12:15–12:55", "領行李與前往雅典機場 (ATH)", "交通", "交通：計程車約 7 公里（€15–20）。", "Athens International Airport, Greece", "driving"),
           I("13:00–13:40", "退稅與報到", "提醒", "退稅商品放托運者，check-in 前先至海關櫃檯蓋章；放隨身行李則過安檢後再辦。", "", "", "重要提醒"),
           I("13:40–15:40", "EES 出境登記、安檢與候機", "提醒", "EES 出境亦須登記，旺季會排隊；起飛前 2 小時 40 分抵達，此段勿再壓縮。", "", "", "重要提醒"),
-          I("15:40–17:20", "雅典 (ATH) → 伊斯坦堡 (IST) TK1850", "航班", "伊斯坦堡純過境，不入境、不需 e-Visa；轉機約 8.5 小時，TK24 約 01:50 起飛，9/15（週二）17:55 抵台北。", "", "", "重要提醒")
+          I("15:40–17:20", "雅典 (ATH) → 伊斯坦堡 (IST) TK1850", "航班", "伊斯坦堡純過境，不入境、不需 e-Visa；轉機約 8.5 小時，TK24 約 01:50 起飛，9/15（週二）17:55 抵台北。", "", "", "已預訂")
         ]
       }
+    ];
+
+    const confirmedBookings = [
+      { group: "航班", items: [
+        { date: "8/31", time: "09:35–17:10", name: "台北 TPE → 伊斯坦堡 IST", code: "TK125" },
+        { date: "9/2", time: "13:20–14:50", name: "伊斯坦堡 IST → 雅典 ATH", code: "TK1849" },
+        { date: "9/13", time: "18:40–19:30", name: "聖托里尼 JTR → 雅典 ATH", code: "A3359" },
+        { date: "9/14", time: "15:40–17:20", name: "雅典 ATH → 伊斯坦堡 IST", code: "TK1850" }
+      ] },
+      { group: "渡輪與接駁", items: [
+        { date: "9/6", time: "09:15–12:05", name: "SeaJets 高速渡輪 Piraeus → Mykonos" },
+        { date: "9/6", time: "", name: "抵達米克諾斯後：接駁直達 Nodo Boutique Hotel" },
+        { date: "9/9", time: "", name: "前往米克諾斯新港：接駁直達港口" },
+        { date: "9/9", time: "12:20–14:50", name: "SeaJets 高速渡輪 Mykonos → Santorini" },
+        { date: "9/9", time: "", name: "抵達聖托里尼後：接駁直達 NĒRO Light-Filled Suites" }
+      ] },
+      { group: "餐廳", items: [
+        { date: "9/2", time: "19:30–21:00", name: "晚餐：Akra" },
+        { date: "9/4", time: "21:00–22:30", name: "晚餐：Ergon Agora Restaurant" },
+        { date: "9/5", time: "21:00–22:30", name: "晚餐：Aneton" },
+        { date: "9/6", time: "20:00–21:30", name: "晚餐：M-eating" },
+        { date: "9/7", time: "18:30–20:00", name: "晚餐：Karavaki Restaurant" },
+        { date: "9/8", time: "15:45–17:15", name: "午餐：Kastro's Restaurant" },
+        { date: "9/9", time: "19:00–20:30", name: "晚餐：Surupo" },
+        { date: "9/12", time: "18:30–20:30", name: "晚餐：Dimitris Ammoudi Taverna" }
+      ] },
+      { group: "活動", items: [
+        { date: "9/11", time: "15:00–20:30", name: "Catamaran 帆船日落之旅" }
+      ] }
     ];
 
     const bookingItems = [
@@ -2131,6 +2198,15 @@
     };
 
     const renderPractical = () => {
+      document.querySelector("#confirmedList").innerHTML = confirmedBookings.map(group => `
+        <section class="confirmed-group">
+          <h4>${h(group.group)}</h4>
+          ${group.items.map(item => `
+            <div class="confirmed-item">
+              <span class="confirmed-when">${h(item.date)}${item.time ? `<em>${h(item.time)}</em>` : ""}</span>
+              <span class="confirmed-name">${h(item.name)}${item.code ? ` <small lang="en">${h(item.code)}</small>` : ""}</span>
+            </div>`).join("")}
+        </section>`).join("");
       const bookingList = document.querySelector("#bookingList");
       let stored = {};
       try { stored = JSON.parse(localStorage.getItem("greece-2026-bookings") || "{}"); } catch (_) { stored = {}; }
@@ -2238,6 +2314,30 @@
     const localDate = iso => {
       const [year, month, day] = iso.split("-").map(Number);
       return new Date(year, month - 1, day);
+    };
+
+    // 記住上次閱讀位置（檢視＋捲動深度），重開自動回到原處；帶 hash 開啟時以 hash 為準
+    const POSITION_KEY = "greece-2026-position";
+    let positionSaveTimer = 0;
+    const savePosition = () => {
+      try {
+        localStorage.setItem(POSITION_KEY, JSON.stringify({ view: document.body.dataset.view || "home", y: Math.round(window.scrollY) }));
+      } catch (_) { /* 私密模式可能停用儲存 */ }
+    };
+    const schedulePositionSave = () => {
+      window.clearTimeout(positionSaveTimer);
+      positionSaveTimer = window.setTimeout(savePosition, 250);
+    };
+    const restorePosition = () => {
+      if (location.hash) return;
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(POSITION_KEY) || "null"); } catch (_) { return; }
+      if (!saved || !document.getElementById(`view-${saved.view}`)) return;
+      if ((document.body.dataset.view || "home") !== saved.view) showView(saved.view);
+      requestAnimationFrame(() => {
+        if (window.ScrollTrigger && document.documentElement.classList.contains("story-motion")) window.ScrollTrigger.refresh();
+        window.scrollTo({ top: saved.y || 0, left: 0, behavior: "auto" });
+      });
     };
 
     const THEME_KEY = "greece-2026-theme";
@@ -2962,6 +3062,10 @@
     handleRoute();
     initStoryScenes();
     scheduleStoryRefresh();
+    restorePosition();
+    window.addEventListener("scroll", schedulePositionSave, { passive: true });
+    window.addEventListener("pagehide", savePosition);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") savePosition(); });
 
     // 部署在 http(s) 時註冊離線快取；本機單檔開啟（file://）自動略過
     if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
