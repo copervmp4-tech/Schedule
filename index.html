@@ -207,9 +207,10 @@
 
     /* ---------- Apple 式捲動場景骨架 ---------- */
     .scene { position: relative; }
-    .scene-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
+    /* dvh：跟著手機網址列收合動態補滿，避免底部露出背景 */
+    .scene-stage { position: sticky; top: 0; height: 100svh; height: 100dvh; overflow: hidden; }
     .hero-scene { height: 175svh; }
-    .overview-scene { height: 440svh; background: var(--paper); }
+    .overview-scene { height: 440svh; background: var(--surface-soft); }
     .chapter-scene { height: 155svh; }
     .story-static .scene { height: auto !important; }
     .story-static .scene-stage { position: relative; height: auto; min-height: 100svh; }
@@ -237,7 +238,6 @@
     .overview-stay { margin: 2px 0 0; font-weight: 700; font-size: .9rem; }
     .overview-stay span { margin-right: 10px; color: rgba(20, 32, 42, .5); font-size: .68rem; font-weight: 760; letter-spacing: .12em; text-transform: uppercase; }
     .overview-summary { margin: 0; max-width: 460px; color: rgba(20, 32, 42, .72); font-size: .94rem; }
-    .overview-state .mini-btn { min-height: 42px; margin-top: 5px; padding: 0 15px; box-shadow: 0 8px 22px rgba(7, 21, 40, .1); }
     .overview-media {
       position: relative; isolation: isolate; contain: paint; flex: 1; min-height: 150px; overflow: hidden;
       border-radius: 28px; background: var(--surface-soft); box-shadow: 0 18px 54px rgba(7, 21, 40, .11);
@@ -279,7 +279,7 @@
     .js:not(.story-static) .overview-stage :is(.overview-head .kicker, .overview-title-line, .overview-note, .overview-route-guide, .overview-route-line, .overview-step, .overview-state, .overview-layer) { opacity: 0; }
     .story-static .overview-copy { position: static; min-height: 0; display: grid; gap: 30px; }
     .story-static .overview-state { position: static; opacity: 1 !important; visibility: visible !important; transform: none !important; }
-    .story-static .overview-state :is(.overview-eyebrow, h3, .overview-detail, .mini-btn) { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+    .story-static .overview-state :is(.overview-eyebrow, h3, .overview-detail) { opacity: 1 !important; visibility: visible !important; transform: none !important; }
     .story-static .overview-title-line { opacity: 1 !important; transform: none !important; }
     .story-static .overview-head :is(.kicker, .overview-note) { opacity: 1 !important; transform: none !important; }
     .story-static .overview-media, .story-static .overview-navigation { display: none; }
@@ -475,7 +475,6 @@
       .overview-copy { flex: 0 0 41%; align-self: center; min-height: 0; height: min(500px, 60vh); }
       .overview-media { flex: 1; min-height: 0; border-radius: 32px; }
       .overview-state h3 { font-size: clamp(3.4rem, 6.5vw, 7rem); }
-      .overview-state .mini-btn { align-self: flex-start; }
       .overview-rail { gap: 0; }
       .notice-bar { flex-direction: row; gap: 12px; align-items: flex-start; }
       .view-practical .section { padding-top: calc(var(--header-h) + 58px); }
@@ -502,17 +501,16 @@
     .story-motion .hero-image,
     .story-motion .view.is-active .city-intro-image { transition: none; }
 
-    /* Scene 1：單一可逆 scrub 的電影式序幕 */
+    /* Scene 1：單一可逆 scrub 的電影式序幕（背景與舞台同色，滿版無縫） */
     .hero-scene.hero-story {
-      height: 185svh; background: var(--surface-soft);
+      height: 185svh; background: #182a35;
     }
     .js:not(.story-static) .hero-route-line { opacity: 0; }
     .hero-sequence-stage {
       --stage-pad: max(clamp(20px, 5vw, 72px), var(--safe-left), var(--safe-right));
-      position: sticky; top: 0; height: 100svh; min-height: 100svh;
+      position: sticky; top: 0; height: 100svh; height: 100dvh; min-height: 100svh;
       display: block; overflow: hidden; transform-origin: center center;
       background: linear-gradient(145deg, #182a35, #274450 62%, #3d616d);
-      will-change: transform, border-radius;
     }
     .hero-sequence-stage .hero-image { transform: scale(1.1); }
     .js:not(.story-static) .hero-sequence-stage .hero-image.is-ready { opacity: .3; }
@@ -569,10 +567,10 @@
     .js:not(.story-static) .hero-sequence-stage :is(.hero-reveal, .route-node) { opacity: 0; }
 
     /* Scene 3：四個獨立城市章節 */
-    .chapter-scene.city-intro-scene { height: 245svh; color: #fff; background: var(--paper); }
+    .chapter-scene.city-intro-scene { height: 245svh; color: #fff; background: var(--chapter-bg); }
     .city-intro-stage {
       --stage-pad: max(clamp(20px, 5vw, 72px), var(--safe-left), var(--safe-right));
-      position: sticky; top: 0; isolation: isolate; height: 100svh; min-height: 100svh;
+      position: sticky; top: 0; isolation: isolate; height: 100svh; height: 100dvh; min-height: 100svh;
       display: block; overflow: hidden; background: var(--chapter-bg);
       transform-origin: center center;
     }
@@ -1026,7 +1024,6 @@
       .overview-eyebrow { font-size: .66rem; }
       .overview-stay { font-size: .72rem; }
       .overview-summary { font-size: .78rem; line-height: 1.4; }
-      .overview-state .mini-btn { min-height: 36px; margin-top: 1px; padding-inline: 12px; font-size: .7rem; }
     }
 
     /* ---------- 深色模式（夜間查行程） ---------- */
@@ -1162,7 +1159,7 @@
                 <h2 id="overview-title"><span class="overview-title-line">四座城市，</span><span class="overview-title-line">一條向海的路。</span></h2>
               </div>
             </div>
-            <p class="overview-note">從博斯普魯斯海峽到愛琴海火山口；捲動切換章節，點「進入章節」看每日行程。</p>
+            <p class="overview-note">從博斯普魯斯海峽到愛琴海火山口；捲動切換章節，右上「旅程」選單可直達各章節每日行程。</p>
           </header>
           <div class="overview-body">
             <div class="overview-copy" id="overviewCopy"></div>
@@ -1790,7 +1787,6 @@
             <div class="overview-detail">
               <p class="overview-stay"><span>Stay</span>${h(city.stay)}</p>
               <p class="overview-summary">${h(city.summary)}</p>
-              <a class="mini-btn primary" href="#chapter-${key}">進入${h(city.zh)}章節 <span aria-hidden="true">→</span></a>
             </div>
           </article>`;
       }).join("");
@@ -2529,7 +2525,7 @@
         heroTl
           .to(nodes, { autoAlpha: 1, stagger: .17, duration: .28 }, .82)
           .to(nodeDots, { scale: 1, stagger: .17, duration: .28 }, .82)
-          .to(stage, { scale: .94, borderRadius: 28, duration: .58 }, 2.25)
+          .to({}, { duration: .58 }, 2.25)
           .to({}, { duration: .18 });
       }
 
@@ -2777,7 +2773,7 @@
           }, handoffStart + .18)
           .to(handoff, { autoAlpha: 1, y: 0, duration: .3 }, handoffStart + .34)
           .addLabel("exit", 3.36)
-          .to(stage, { scale: config.exitScale, borderRadius: config.radius, duration: .34 }, 3.36)
+          .to({}, { duration: .34 }, 3.36)
           .to({}, { duration: .04 }, 3.7);
 
         routeLabelTimes.forEach((time, itemIndex) => {
