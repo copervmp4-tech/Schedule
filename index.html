@@ -4,8 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1d2e38" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f171d" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#1d2e38">
   <meta name="description" content="Greece 2026｜從伊斯坦堡前往愛琴海的 15 天同行旅程">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,7 +13,10 @@
   <link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
   <link rel="preconnect" href="https://maps.google.com">
   <title>Greece 2026｜15 天愛琴海旅程</title>
-  <script>document.documentElement.classList.add("js");</script>
+  <script>
+    document.documentElement.classList.add("js");
+    try { if (localStorage.getItem("greece-2026-theme") === "dark") document.documentElement.classList.add("theme-dark"); } catch (e) {}
+  </script>
   <style>
     :root {
       --navy-950: #1d2e38;
@@ -135,6 +137,7 @@
       text-decoration: none; font-size: .88rem;
     }
     .header-link:hover { background: rgba(255, 255, 255, .12); }
+    .theme-toggle { min-width: 44px; border: 0; background: transparent; cursor: pointer; font-size: 1.02rem; line-height: 1; }
     .journey-menu { position: relative; }
     .journey-menu > summary { list-style: none; cursor: pointer; user-select: none; }
     .journey-menu > summary::-webkit-details-marker { display: none; }
@@ -207,8 +210,8 @@
 
     /* ---------- Apple 式捲動場景骨架 ---------- */
     .scene { position: relative; }
-    /* dvh：跟著手機網址列收合動態補滿，避免底部露出背景 */
-    .scene-stage { position: sticky; top: 0; height: 100svh; height: 100dvh; overflow: hidden; }
+    /* svh：固定高度、不隨網址列收合重排；縫隙由同色場景背景補上 */
+    .scene-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
     .hero-scene { height: 175svh; }
     .overview-scene { height: 440svh; background: var(--surface-soft); }
     .chapter-scene { height: 155svh; }
@@ -449,6 +452,10 @@
     .weather-meta { margin-top: 7px; color: var(--muted); font-size: .8rem; line-height: 1.5; }
     .weather-note, .weather-error { margin: 0; color: var(--muted); font-size: .9rem; }
     .weather-grid .weather-note { grid-column: 1 / -1; }
+    .weather-days { display: grid; gap: 4px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
+    .weather-day { display: grid; grid-template-columns: 34px 22px minmax(0, 1fr) auto; gap: 6px; align-items: center; color: var(--muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
+    .weather-day strong { color: var(--ink); font-weight: 600; }
+    .weather-days-note { margin: 10px 0 0; color: var(--muted); font-size: .75rem; }
     .weather-error button { margin-left: 8px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); color: var(--ink); cursor: pointer; font-size: .8rem; font-weight: 700; }
     @media (min-width: 561px) { .weather-grid { grid-template-columns: repeat(4, 1fr); } }
 
@@ -501,14 +508,14 @@
     .story-motion .hero-image,
     .story-motion .view.is-active .city-intro-image { transition: none; }
 
-    /* Scene 1：單一可逆 scrub 的電影式序幕（背景與舞台同色，滿版無縫） */
+    /* Scene 1：單一可逆 scrub 的電影式序幕（背景與舞台同漸層，縫隙無感） */
     .hero-scene.hero-story {
-      height: 185svh; background: #182a35;
+      height: 185svh; background: linear-gradient(145deg, #182a35, #274450 62%, #3d616d);
     }
     .js:not(.story-static) .hero-route-line { opacity: 0; }
     .hero-sequence-stage {
       --stage-pad: max(clamp(20px, 5vw, 72px), var(--safe-left), var(--safe-right));
-      position: sticky; top: 0; height: 100svh; height: 100dvh; min-height: 100svh;
+      position: sticky; top: 0; height: 100svh; min-height: 100svh;
       display: block; overflow: hidden; transform-origin: center center;
       background: linear-gradient(145deg, #182a35, #274450 62%, #3d616d);
     }
@@ -570,7 +577,7 @@
     .chapter-scene.city-intro-scene { height: 245svh; color: #fff; background: var(--chapter-bg); }
     .city-intro-stage {
       --stage-pad: max(clamp(20px, 5vw, 72px), var(--safe-left), var(--safe-right));
-      position: sticky; top: 0; isolation: isolate; height: 100svh; height: 100dvh; min-height: 100svh;
+      position: sticky; top: 0; isolation: isolate; height: 100svh; min-height: 100svh;
       display: block; overflow: hidden; background: var(--chapter-bg);
       transform-origin: center center;
     }
@@ -730,10 +737,11 @@
       .hero-sequence-stage .hero-inner { left: 20px; top: 41%; width: calc(100% - 40px); }
       .hero-sequence-stage h1 { width: auto; font-size: clamp(4rem, 19vw, 5.25rem); line-height: .82; letter-spacing: -.075em; }
       .hero-sequence-stage .hero-overline { max-width: 270px; }
-      .hero-story-meta { top: auto; left: 20px; right: 20px; bottom: 30%; width: auto; gap: 12px; text-align: left; }
+      .hero-story-meta { top: auto; left: 20px; right: 20px; bottom: 20%; width: auto; gap: 10px; text-align: left; }
       .hero-date, .hero-destinations { justify-content: flex-start; }
       .hero-destinations { max-width: 340px; }
-      .hero-story-meta .hero-countdown { display: none; }
+      .hero-story-meta .hero-countdown { justify-items: start; }
+      .hero-story-meta .hero-countdown strong { font-size: 1.7rem; }
       .hero-sequence-stage .hero-route { left: 12px; right: 12px; bottom: 2%; width: calc(100% - 24px); height: 15svh; overflow: visible; pointer-events: none; }
       .hero-scroll-cue { display: none; }
 
@@ -1026,68 +1034,68 @@
       .overview-summary { font-size: .78rem; line-height: 1.4; }
     }
 
-    /* ---------- 深色模式（夜間查行程） ---------- */
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --aegean: #6f95a1;
-        --paper: #0f171d;
-        --ink: #dde6ea;
-        --muted: #8fa0a8;
-        --line: rgba(221, 230, 234, .12);
-        --success: #8fb3ac;
-        --surface-soft: #16212a;
-        --surface-tint: #1c2933;
-        --shadow: 0 24px 70px rgba(0, 0, 0, .5);
-        --shadow-soft: 0 12px 36px rgba(0, 0, 0, .4);
-      }
-      .skip-link { background: #1c2933; }
-      .day { background: #141f27; border-color: rgba(255, 255, 255, .06); }
-      .panel { background: #141f27; border-color: rgba(255, 255, 255, .07); box-shadow: 0 14px 34px rgba(0, 0, 0, .3); }
-      .mini-btn { background: #1c2933; border-color: rgba(255, 255, 255, .16); }
-      .mini-btn:hover { background: #24333e; border-color: rgba(139, 166, 175, .5); }
-      .mini-btn.primary { background: #3f606c; border-color: #3f606c; }
-      .event-actions .mini-btn:not(.primary) { color: #9fb6bd; }
-      .map-card { background: #131c23; border-color: var(--line); }
-      .route-stops { background: #141f27; }
-      .map-load-btn {
-        color: #a9bcc3;
-        background:
-          radial-gradient(circle at 30% 35%, rgba(139, 166, 175, .12), transparent 42%),
-          radial-gradient(circle at 72% 68%, rgba(139, 166, 175, .09), transparent 46%),
-          #1a2630;
-      }
-      .map-load-btn:hover { color: var(--ink); }
-      .event::before { border-color: #141f27; }
-      .event-details { color: #a7b6bd; }
-      .badge { color: #a5b5bc; }
-      .badge.status { color: #9fb0b7; background: #1c2933; }
-      .badge.booked { color: #94b3a8; background: #18272a; }
-      .menu-list strong { color: #9ab3bc; }
-      .today-pill { color: #9fc4b9; background: #18272a; }
-      .date-nav-wrap { background: rgba(15, 23, 29, .72); }
-      .date-link:hover { background: #1c2933; color: var(--ink); }
-      .notice-bar { border-color: rgba(120, 160, 175, .24); background: #14232b; color: #a8bcc4; }
-      .booking-item { background: #1a2630; }
-      .booking-item:has(input:checked) { background: #18272a; }
-      .booking-item:has(input:checked) strong { color: #7f948c; }
-      .risk-card { background: #16232b; border-color: rgba(139, 166, 175, .16); }
-      .weather-card { background: #16232b; border-color: rgba(139, 166, 175, .16); }
-      .weather-error button { background: #1c2933; color: var(--ink); border-color: rgba(255, 255, 255, .16); }
-      .overview-note { color: rgba(221, 230, 234, .55); }
-      .overview-stay span { color: rgba(221, 230, 234, .5); }
-      .overview-summary { color: rgba(221, 230, 234, .72); }
-      .overview-rail li { color: rgba(221, 230, 234, .42); }
-      .overview-step:hover { color: var(--ink); background: rgba(255, 255, 255, .06); }
-      .overview-step-node { background: #16212a; }
-      .overview-route-guide { stroke: rgba(221, 230, 234, .16); }
-      .day-focus-readout em { color: rgba(221, 230, 234, .52); }
-      .day-explorer .route-stops li.is-past { color: #9db0b7; }
-      .day-explorer .route-stops li.is-active { color: #d9e7ea; background: #24404a; }
-      .route-stop-node { color: #8fa1a8; border-color: #3d4f57; background: #141f27; }
-      .day-timeline .event::before { background: #3e4f57; }
-      .day-timeline .event.is-past::before { background: #6e838b; }
-      .day-timeline .event.is-active .event-card { background: #17262d; box-shadow: inset 3px 0 0 0 var(--aegean), 0 10px 26px rgba(0, 0, 0, .3); }
+    /* ---------- 深色模式（手動切換，預設亮色） ---------- */
+    :root { color-scheme: light; }
+    html.theme-dark { color-scheme: dark; }
+    html.theme-dark {
+      --aegean: #6f95a1;
+      --paper: #0f171d;
+      --ink: #dde6ea;
+      --muted: #8fa0a8;
+      --line: rgba(221, 230, 234, .12);
+      --success: #8fb3ac;
+      --surface-soft: #16212a;
+      --surface-tint: #1c2933;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .5);
+      --shadow-soft: 0 12px 36px rgba(0, 0, 0, .4);
     }
+    html.theme-dark .skip-link { background: #1c2933; }
+    html.theme-dark .day { background: #141f27; border-color: rgba(255, 255, 255, .06); }
+    html.theme-dark .panel { background: #141f27; border-color: rgba(255, 255, 255, .07); box-shadow: 0 14px 34px rgba(0, 0, 0, .3); }
+    html.theme-dark .mini-btn { background: #1c2933; border-color: rgba(255, 255, 255, .16); }
+    html.theme-dark .mini-btn:hover { background: #24333e; border-color: rgba(139, 166, 175, .5); }
+    html.theme-dark .mini-btn.primary { background: #3f606c; border-color: #3f606c; }
+    html.theme-dark .event-actions .mini-btn:not(.primary) { color: #9fb6bd; }
+    html.theme-dark .map-card { background: #131c23; border-color: var(--line); }
+    html.theme-dark .route-stops { background: #141f27; }
+    html.theme-dark .map-load-btn {
+      color: #a9bcc3;
+      background:
+        radial-gradient(circle at 30% 35%, rgba(139, 166, 175, .12), transparent 42%),
+        radial-gradient(circle at 72% 68%, rgba(139, 166, 175, .09), transparent 46%),
+        #1a2630;
+    }
+    html.theme-dark .map-load-btn:hover { color: var(--ink); }
+    html.theme-dark .event::before { border-color: #141f27; }
+    html.theme-dark .event-details { color: #a7b6bd; }
+    html.theme-dark .badge { color: #a5b5bc; }
+    html.theme-dark .badge.status { color: #9fb0b7; background: #1c2933; }
+    html.theme-dark .badge.booked { color: #94b3a8; background: #18272a; }
+    html.theme-dark .menu-list strong { color: #9ab3bc; }
+    html.theme-dark .today-pill { color: #9fc4b9; background: #18272a; }
+    html.theme-dark .date-nav-wrap { background: rgba(15, 23, 29, .72); }
+    html.theme-dark .date-link:hover { background: #1c2933; color: var(--ink); }
+    html.theme-dark .notice-bar { border-color: rgba(120, 160, 175, .24); background: #14232b; color: #a8bcc4; }
+    html.theme-dark .booking-item { background: #1a2630; }
+    html.theme-dark .booking-item:has(input:checked) { background: #18272a; }
+    html.theme-dark .booking-item:has(input:checked) strong { color: #7f948c; }
+    html.theme-dark .risk-card { background: #16232b; border-color: rgba(139, 166, 175, .16); }
+    html.theme-dark .weather-card { background: #16232b; border-color: rgba(139, 166, 175, .16); }
+    html.theme-dark .weather-error button { background: #1c2933; color: var(--ink); border-color: rgba(255, 255, 255, .16); }
+    html.theme-dark .overview-note { color: rgba(221, 230, 234, .55); }
+    html.theme-dark .overview-stay span { color: rgba(221, 230, 234, .5); }
+    html.theme-dark .overview-summary { color: rgba(221, 230, 234, .72); }
+    html.theme-dark .overview-rail li { color: rgba(221, 230, 234, .42); }
+    html.theme-dark .overview-step:hover { color: var(--ink); background: rgba(255, 255, 255, .06); }
+    html.theme-dark .overview-step-node { background: #16212a; }
+    html.theme-dark .overview-route-guide { stroke: rgba(221, 230, 234, .16); }
+    html.theme-dark .day-focus-readout em { color: rgba(221, 230, 234, .52); }
+    html.theme-dark .day-explorer .route-stops li.is-past { color: #9db0b7; }
+    html.theme-dark .day-explorer .route-stops li.is-active { color: #d9e7ea; background: #24404a; }
+    html.theme-dark .route-stop-node { color: #8fa1a8; border-color: #3d4f57; background: #141f27; }
+    html.theme-dark .day-timeline .event::before { background: #3e4f57; }
+    html.theme-dark .day-timeline .event.is-past::before { background: #6e838b; }
+    html.theme-dark .day-timeline .event.is-active .event-card { background: #17262d; box-shadow: inset 3px 0 0 0 var(--aegean), 0 10px 26px rgba(0, 0, 0, .3); }
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
@@ -1106,6 +1114,7 @@
         <summary class="header-link">旅程 <span class="journey-caret" aria-hidden="true">⌄</span></summary>
       </details>
       <a class="header-link" href="#practical">資訊</a>
+      <button class="header-link theme-toggle" id="themeToggle" type="button" aria-label="切換為深色主題"><span aria-hidden="true">☾</span></button>
     </nav>
   </header>
 
@@ -1193,7 +1202,7 @@
           <section class="panel weather-panel reveal" aria-labelledby="weather-title">
             <h3 id="weather-title">即時天氣 <span class="weather-live" lang="en">LIVE</span></h3>
             <div class="weather-grid" id="weatherList" aria-live="polite"><p class="weather-note">正在取得即時天氣…</p></div>
-            <p class="source-note">資料來源：Open-Meteo，開啟頁面時上網即時查詢當地目前天氣。</p>
+            <p class="source-note">資料來源：Open-Meteo；開啟頁面時查詢當地即時天氣，出發前 15 天內會附上各城市停留日的逐日預報（高低溫、降雨機率與最大風速）。</p>
           </section>
           <div class="practical-grid">
             <section class="panel reveal" aria-labelledby="booking-title">
@@ -2182,10 +2191,10 @@
     };
 
     const weatherCities = [
-      { zh: "伊斯坦堡", en: "Istanbul", lat: 41.008, lon: 28.978 },
-      { zh: "雅典", en: "Athens", lat: 37.983, lon: 23.728 },
-      { zh: "米克諾斯", en: "Mykonos", lat: 37.446, lon: 25.329 },
-      { zh: "聖托里尼", en: "Santorini", lat: 36.393, lon: 25.461 }
+      { zh: "伊斯坦堡", en: "Istanbul", lat: 41.008, lon: 28.978, from: "2026-08-31", to: "2026-09-02" },
+      { zh: "雅典", en: "Athens", lat: 37.983, lon: 23.728, from: "2026-09-02", to: "2026-09-06" },
+      { zh: "米克諾斯", en: "Mykonos", lat: 37.446, lon: 25.329, from: "2026-09-06", to: "2026-09-09" },
+      { zh: "聖托里尼", en: "Santorini", lat: 36.393, lon: 25.461, from: "2026-09-09", to: "2026-09-14" }
     ];
     const weatherCodeMap = {
       0: ["晴", "☀️"], 1: ["大致晴", "🌤️"], 2: ["局部多雲", "⛅"], 3: ["陰", "☁️"],
@@ -2195,16 +2204,32 @@
       77: ["雪珠", "🌨️"], 80: ["陣雨", "🌦️"], 81: ["陣雨", "🌧️"], 82: ["強陣雨", "⛈️"],
       85: ["陣雪", "🌨️"], 86: ["陣雪", "🌨️"], 95: ["雷雨", "⛈️"], 96: ["雷雨冰雹", "⛈️"], 99: ["雷雨冰雹", "⛈️"]
     };
-    const WEATHER_CACHE_KEY = "greece-2026-weather";
+    const WEATHER_CACHE_KEY = "greece-2026-weather-v2";
     const readWeatherCache = () => {
       try { return JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || "null"); } catch (_) { return null; }
     };
-    const weatherCardMarkup = (city, current) => {
+    const weatherIsoDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const weatherCardMarkup = (city, payload, horizon) => {
+      const current = payload.current;
       const [desc, icon] = weatherCodeMap[current.weather_code] || ["—", "🌡️"];
+      let daysHtml = "";
+      if (payload.daily?.time?.length) {
+        daysHtml = `<div class="weather-days">` + payload.daily.time.map((iso, index) => {
+          const [, dayIcon] = weatherCodeMap[payload.daily.weather_code[index]] || ["—", "🌡️"];
+          const md = `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`;
+          const range = `${Math.round(payload.daily.temperature_2m_min[index])}–${Math.round(payload.daily.temperature_2m_max[index])}°`;
+          const rain = Math.round(payload.daily.precipitation_probability_max[index] ?? 0);
+          const wind = Math.round(payload.daily.wind_speed_10m_max[index] ?? 0);
+          return `<div class="weather-day"><span>${md}</span><span aria-hidden="true">${dayIcon}</span><strong>${range}</strong><span>💧${rain}%・風${wind}</span></div>`;
+        }).join("") + `</div>`;
+      } else if (localDate(city.from) > horizon) {
+        daysHtml = `<p class="weather-days-note">停留日的逐日預報將於出發前 15 天內出現在這裡</p>`;
+      }
       return `<div class="weather-card">
         <div class="weather-head"><span class="weather-icon" aria-hidden="true">${icon}</span><strong>${h(city.zh)}</strong><small lang="en">${h(city.en)}</small></div>
         <div class="weather-temp">${Math.round(current.temperature_2m)}<span>°C</span></div>
         <div class="weather-meta">${h(desc)}<br>濕度 ${Math.round(current.relative_humidity_2m)}% · 風 ${Math.round(current.wind_speed_10m)} km/h</div>
+        ${daysHtml}
       </div>`;
     };
     const loadWeather = async () => {
@@ -2212,28 +2237,37 @@
       if (!list) return;
       list.innerHTML = `<p class="weather-note">正在取得即時天氣…</p>`;
       const cache = readWeatherCache();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const horizon = new Date(today);
+      horizon.setDate(horizon.getDate() + 15);
       const settled = await Promise.allSettled(weatherCities.map(async city => {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`;
+        const from = localDate(city.from) < today ? today : localDate(city.from);
+        const to = localDate(city.to) > horizon ? horizon : localDate(city.to);
+        let url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`;
+        if (from <= to && localDate(city.to) >= today) {
+          url += `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&start_date=${weatherIsoDate(from)}&end_date=${weatherIsoDate(to)}`;
+        }
         const signal = typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(8000) : undefined;
         const res = await fetch(url, { signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        return data.current;
+        return { current: data.current, daily: data.daily || null };
       }));
-      const currents = settled.map((result, index) =>
-        result.status === "fulfilled" ? result.value : cache?.currents?.[index] || null);
-      if (currents.every(current => !current)) {
+      const payloads = settled.map((result, index) =>
+        result.status === "fulfilled" ? result.value : cache?.payloads?.[index] || null);
+      if (payloads.every(payload => !payload)) {
         list.innerHTML = `<p class="weather-error">目前無法取得即時天氣（需連線網路）。<button type="button" data-weather-retry>重試</button></p>`;
         return;
       }
       const anyLive = settled.some(result => result.status === "fulfilled");
       list.innerHTML = weatherCities.map((city, index) => {
-        const current = currents[index];
-        if (!current) return `<div class="weather-card"><div class="weather-head"><strong>${h(city.zh)}</strong><small lang="en">${h(city.en)}</small></div><div class="weather-meta">暫時取不到資料</div></div>`;
-        return weatherCardMarkup(city, current);
+        const payload = payloads[index];
+        if (!payload) return `<div class="weather-card"><div class="weather-head"><strong>${h(city.zh)}</strong><small lang="en">${h(city.en)}</small></div><div class="weather-meta">暫時取不到資料</div></div>`;
+        return weatherCardMarkup(city, payload, horizon);
       }).join("");
       if (anyLive && settled.every(result => result.status === "fulfilled")) {
-        try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), currents })); } catch (_) { /* 私密模式可能停用儲存 */ }
+        try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({ ts: Date.now(), payloads })); } catch (_) { /* 私密模式可能停用儲存 */ }
       } else if (!anyLive && cache?.ts) {
         const minutes = Math.max(1, Math.round((Date.now() - cache.ts) / 60000));
         list.insertAdjacentHTML("beforeend", `<p class="weather-note">離線中，顯示 ${minutes < 60 ? `${minutes} 分鐘` : `${Math.round(minutes / 60)} 小時`}前的快取資料。<button type="button" data-weather-retry>重試</button></p>`);
@@ -2251,7 +2285,26 @@
       return new Date(year, month - 1, day);
     };
 
+    const THEME_KEY = "greece-2026-theme";
+    const applyTheme = theme => {
+      document.documentElement.classList.toggle("theme-dark", theme === "dark");
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0f171d" : "#1d2e38");
+      const toggle = document.querySelector("#themeToggle");
+      if (toggle) {
+        toggle.setAttribute("aria-label", theme === "dark" ? "切換為亮色主題" : "切換為深色主題");
+        toggle.querySelector("span").textContent = theme === "dark" ? "☀" : "☾";
+      }
+    };
+
+    let countdownTimer = 0;
     const setupCountdown = () => {
+      // 可重複執行：先清掉舊的「今天」標記，跨午夜重算時才不會殘留
+      document.querySelectorAll(".day.is-today").forEach(card => {
+        card.classList.remove("is-today");
+        const pill = card.querySelector(".today-pill");
+        if (pill) pill.hidden = true;
+      });
+      document.querySelectorAll('[aria-current="date"]').forEach(link => link.removeAttribute("aria-current"));
       const start = localDate(tripDays[0].date);
       const end = localDate(tripDays.at(-1).date);
       const today = new Date();
@@ -2283,6 +2336,11 @@
         value.textContent = "15 Days";
         detail.textContent = "把愛琴海留在下一次出發以前";
       }
+      // 跨午夜自動重算（頁面掛過夜時倒數與「今天」高亮跟著更新）
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+      window.clearTimeout(countdownTimer);
+      countdownTimer = window.setTimeout(setupCountdown, Math.min(nextMidnight - now, 2147000000));
     };
 
     const setupObservers = () => {
@@ -2340,6 +2398,11 @@
           const day = routeStop.closest(".day-explorer");
           const controller = dayExplorerControllers.get(Number(day?.dataset.dayIndex));
           controller?.scrollToStop(Number(routeStop.dataset.targetEventIndex), { keyboard: event.detail === 0 });
+        }
+        if (event.target.closest("#themeToggle")) {
+          const next = document.documentElement.classList.contains("theme-dark") ? "light" : "dark";
+          applyTheme(next);
+          try { localStorage.setItem(THEME_KEY, next); } catch (_) { /* 私密模式可能停用儲存 */ }
         }
         const segment = event.target.closest(".segment-btn");
         if (segment) updateMapSegment(segment);
@@ -2631,16 +2694,14 @@
                 y: motion[previousIndex].exitY,
                 duration: .2
               }, exitStart)
-              .to(layers[previousIndex], { autoAlpha: 0, duration: .26 }, layerStart);
+              // 舊圖層等新圖完全蓋住後才移除，換場只靠 clip 上掀，不做半透明疊影
+              .to(layers[previousIndex], { autoAlpha: 0, duration: .1 }, layerStart + .32);
           }
 
           if (index === 0) overviewTl.to(media, { autoAlpha: 1, duration: .3 }, layerStart);
           overviewTl
-            .to(layers[index], {
-              autoAlpha: 1,
-              clipPath: "inset(0% 0% 0% 0% round 28px)",
-              duration: .3
-            }, layerStart)
+            .to(layers[index], { autoAlpha: 1, duration: .06 }, layerStart)
+            .to(layers[index], { clipPath: "inset(0% 0% 0% 0% round 28px)", duration: .3 }, layerStart)
             .to(images[index], { scale: 1, duration: .62 }, layerStart)
             .to(state, { autoAlpha: 1, x: 0, y: 0, duration: .22 }, textStart)
             .to(eyebrow, { autoAlpha: 1, y: 0, duration: .16 }, textStart)
@@ -2942,6 +3003,7 @@
       routeHasInitialized = true;
     };
 
+    applyTheme(document.documentElement.classList.contains("theme-dark") ? "dark" : "light");
     renderOverviewScene();
     renderChapters();
     setupDayExplorerControllers();
