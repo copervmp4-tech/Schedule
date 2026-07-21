@@ -203,8 +203,6 @@
     .hero-overline { margin: 0; color: var(--aegean-light); font-size: .72rem; font-weight: 760; letter-spacing: .18em; text-transform: uppercase; }
     .hero h1 { margin: 0; }
     .hero-subtitle { margin: 0; color: rgba(255, 255, 255, .84); font-size: clamp(1.05rem, 4vw, 1.9rem); letter-spacing: -.02em; }
-    .hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; }
-    .hero-meta span { padding: 6px 12px; border: 1px solid rgba(255, 255, 255, .2); border-radius: 999px; background: rgba(255, 255, 255, .08); font-size: .8rem; }
     .hero-countdown { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; color: rgba(255, 255, 255, .72); }
     .hero-countdown strong { color: var(--white); font-size: clamp(1.9rem, 7vw, 3rem); line-height: 1; letter-spacing: -.04em; }
     .hero-countdown small { font-size: .74rem; }
@@ -350,12 +348,6 @@
 
     /* ---------- 每日行程 ---------- */
     .chapter-days { width: min(920px, calc(100% - 24px)); margin: 0 auto; padding: 34px 0 26px; }
-    .day {
-      scroll-margin-top: 150px; margin: 0 0 24px; padding: 22px 16px;
-      border-radius: var(--radius-lg); background: var(--white);
-      box-shadow: var(--shadow-soft); border: 1px solid rgba(20, 32, 42, .06);
-    }
-    .day.is-today { border: 2px solid var(--aegean); box-shadow: 0 20px 70px rgba(68, 93, 105, .12); }
     .day-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
     .day-number { margin: 0 0 6px; color: var(--aegean); font-weight: 760; font-size: .75rem; letter-spacing: .13em; text-transform: uppercase; }
     .day h3 { margin: 0; }
@@ -408,7 +400,6 @@
     }
     .event-time { margin: 0; color: var(--aegean); font-size: .78rem; font-weight: 760; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
     .event h4 { margin: 3px 0 0; }
-    .event-card { padding: 0 0 18px; border-bottom: 1px solid var(--line); }
     .event:last-child { padding-bottom: 0; }
     .event:last-child .event-card { border-bottom: 0; padding-bottom: 0; }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
@@ -509,12 +500,10 @@
       .practical-intro { grid-template-columns: minmax(0, 1.3fr) minmax(320px, .7fr); align-items: end; gap: clamp(28px, 4vw, 56px); margin-bottom: 46px; }
       .chapter-hero-copy { padding: 150px 20px 48px; gap: 16px; }
       .chapter-days { padding: 56px 0 36px; }
-      .day { margin-bottom: 30px; padding: 36px; border-radius: var(--radius-xl); }
       .place-feature { min-height: 300px; margin-bottom: 30px; }
       .place-feature figcaption { left: 20px; bottom: 20px; }
       .map-card { margin-bottom: 30px; }
       .map-top { flex-direction: row; align-items: center; justify-content: space-between; padding: 15px 18px; }
-      .event { padding: 0 0 26px 28px; }
       .practical-grid { grid-template-columns: 1.15fr .85fr; }
       .panel { padding: 28px; }
     }
@@ -1072,7 +1061,6 @@
       --shadow-soft: 0 12px 36px rgba(0, 0, 0, .4);
     }
     html.theme-dark .skip-link { background: #1c2933; }
-    html.theme-dark .day { background: #141f27; border-color: rgba(255, 255, 255, .06); }
     html.theme-dark .panel { background: #141f27; border-color: rgba(255, 255, 255, .07); box-shadow: 0 14px 34px rgba(0, 0, 0, .3); }
     html.theme-dark .mini-btn { background: #1c2933; border-color: rgba(255, 255, 255, .16); }
     html.theme-dark .mini-btn:hover { background: #24333e; border-color: rgba(139, 166, 175, .5); }
@@ -2203,7 +2191,6 @@
     const updateDayFocus = (day, event, immediate = false) => {
       if (!day || !event) return;
       if (!day.closest(".view")?.classList.contains("is-active")) return;
-      setActiveDateNav(day);
       const events = [...day.querySelectorAll(".event")];
       const eventIndex = Number(event.dataset.eventIndex || 0);
       const eventProgress = events.length > 1 ? eventIndex / (events.length - 1) : 1;
@@ -2505,19 +2492,6 @@
         revealItems.forEach(item => revealObserver.observe(item));
       }
 
-      if ("IntersectionObserver" in window) {
-        const dayVisibility = new Map();
-        const dayObserver = new IntersectionObserver(entries => {
-          entries.forEach(entry => dayVisibility.set(entry.target, entry.isIntersecting ? entry.intersectionRatio : 0));
-          const activeView = document.querySelector(".view.is-active");
-          const visible = [...dayVisibility.entries()]
-            .filter(([day, ratio]) => ratio > 0 && day.closest(".view") === activeView)
-            .sort((a, b) => b[1] - a[1])[0]?.[0];
-          if (!visible) return;
-          setActiveDateNav(visible);
-        }, { threshold: [0.12, 0.3], rootMargin: "-20% 0px -55%" });
-        document.querySelectorAll(".day").forEach(day => dayObserver.observe(day));
-      }
     };
 
     const setupInteractions = () => {
@@ -3043,10 +3017,15 @@
           gsap.fromTo(caption, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, ease: "none", scrollTrigger: { trigger: feature, start: "top 70%", end: "top 48%", scrub: .35 } });
         }
 
-        let activeFocusEvent = events[0];
-        // 只在 refresh 時量測一次，捲動時用快取位置比對，避免每幀 getBoundingClientRect 觸發 layout
+        // 單一事實來源：日期列與焦點列都由同一條 46% 焦點線驅動，避免兩套機制互搶
+        let activeFocusEvent = null;
         let eventTops = [];
+        let dayTop = 0;
+        let dayBottom = 0;
         const measureEvents = () => {
+          const rect = day.getBoundingClientRect();
+          dayTop = rect.top + window.scrollY;
+          dayBottom = rect.bottom + window.scrollY;
           eventTops = events.map(ev => ev.getBoundingClientRect().top + window.scrollY);
         };
         measureEvents();
@@ -3056,8 +3035,11 @@
           start: "top bottom",
           end: "bottom top",
           onRefresh: measureEvents,
+          onEnter: measureEvents,
+          onEnterBack: measureEvents,
           onUpdate: () => {
             const line = window.scrollY + window.innerHeight * .46;
+            if (line >= dayTop && line < dayBottom) setActiveDateNav(day);
             let chosen = events[0];
             for (let i = 0; i < events.length; i += 1) {
               if (eventTops[i] <= line) chosen = events[i]; else break;
