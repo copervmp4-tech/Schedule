@@ -1827,20 +1827,33 @@
         { date: "9/4", time: "17:00–18:00", name: "雅典衛城 timed-entry 門票", code: "hhticket.gr" }
       ] },
       { group: "活動", items: [
+        { date: "9/3", time: "07:40", name: "德爾菲一日團（含遺址、博物館門票與導覽）", code: "Trip.com" },
         { date: "9/11", time: "15:00–20:30", name: "Catamaran 帆船日落之旅" }
       ] }
     ];
 
     const bookingItems = [
-      { title: "衛城 timed-entry 門票", detail: "已購入 9/4 17:00–18:00 時段（hhticket.gr，€30／人）；出發前把電子票 QR code 存成離線檔。" },
-      { title: "德爾菲一日團", detail: "9/3 已於 Trip.com 購入；07:40 於希臘國會大廈（Hellenic Parliament）「Sights Of Athens」藍色巴士站牌集合，含遺址、博物館門票與導覽，午餐自理。" },
-      { title: "朵瑪巴切宮門票", detail: "9/1 線上購 12:00 前後入場時段；若官方票無時段制，直接到場。" },
-      { title: "SeaJets 兩段船票", detail: "選可改簽票種；記下同日替代船班。Piraeus → Mykonos 可查 Blue Star，Mykonos → Santorini 停航時查 Ferryhopper。" },
-      { title: "Delos Tours 船票", detail: "9/8 11:30 去、15:00 回；9/5–19 班表已核實，線上先購免排隊。" },
-      { title: "Metaxi Mas 訂位", detail: "至少提前一週電話預訂 9/10 14:30，備妥現金。" },
-      { title: "帆船日落團", detail: "9/11；確認接送點與風況取消政策。" },
-      { title: "土耳其 e-Visa", detail: "查六月那張效期；多次入境、180 天，仍有效即免重辦。" }
+      { id: "dolmabahce", title: "朵瑪巴切宮門票", detail: "9/1 線上購 12:00 前後入場時段；若官方票無時段制，直接到場。" },
+      { id: "seajets", title: "SeaJets 兩段船票", detail: "選可改簽票種；記下同日替代船班。Piraeus → Mykonos 可查 Blue Star，Mykonos → Santorini 停航時查 Ferryhopper。" },
+      { id: "delos", title: "Delos Tours 船票", detail: "9/8 11:30 去、15:00 回；9/5–19 班表已核實，線上先購免排隊。" },
+      { id: "metaxi-mas", title: "Metaxi Mas 訂位", detail: "至少提前一週電話預訂 9/10 14:30，備妥現金。" },
+      { id: "catamaran", title: "帆船日落團", detail: "9/11；確認接送點與風況取消政策。" },
+      { id: "turkey-evisa", title: "土耳其 e-Visa", detail: "查六月那張效期；多次入境、180 天，仍有效即免重辦。" }
     ];
+
+    const BOOKINGS_KEY = "greece-2026-bookings-v2";
+    /* 舊版用陣列索引存勾選狀態，清單一增刪就整排錯位；改用固定 id，並把舊資料一次性搬過來。 */
+    const LEGACY_BOOKING_IDS = ["acropolis-ticket", "delphi-tour", "dolmabahce", "seajets", "delos", "metaxi-mas", "catamaran", "turkey-evisa"];
+    const readBookings = () => {
+      try {
+        const saved = localStorage.getItem(BOOKINGS_KEY);
+        if (saved) return JSON.parse(saved);
+        const legacy = JSON.parse(localStorage.getItem("greece-2026-bookings") || "{}");
+        const migrated = {};
+        Object.keys(legacy).forEach(index => { if (LEGACY_BOOKING_IDS[index]) migrated[LEGACY_BOOKING_IDS[index]] = legacy[index]; });
+        return migrated;
+      } catch (_) { return {}; }
+    };
 
     const riskItems = [
       { title: "渡輪與 meltemi", text: "9 月上旬 Cyclades 可能吹強風，高速船最易停航。前一晚查 SeaJets；若 9/9 停航，改隔日早班船，聖島行程順延壓縮。" },
@@ -2418,11 +2431,10 @@
             </div>`).join("")}
         </section>`).join("");
       const bookingList = document.querySelector("#bookingList");
-      let stored = {};
-      try { stored = JSON.parse(localStorage.getItem("greece-2026-bookings") || "{}"); } catch (_) { stored = {}; }
-      bookingList.innerHTML = bookingItems.map((item, index) => `
+      const stored = readBookings();
+      bookingList.innerHTML = bookingItems.map(item => `
         <label class="booking-item">
-          <input type="checkbox" data-booking="${index}" ${stored[index] ? "checked" : ""}>
+          <input type="checkbox" data-booking="${h(item.id)}" ${stored[item.id] ? "checked" : ""}>
           <span><strong>${h(item.title)}</strong><span>${h(item.detail)}</span></span>
         </label>
       `).join("");
@@ -2518,7 +2530,7 @@
     const saveBookings = () => {
       const state = {};
       document.querySelectorAll("[data-booking]").forEach(box => { state[box.dataset.booking] = box.checked; });
-      try { localStorage.setItem("greece-2026-bookings", JSON.stringify(state)); } catch (_) { /* 私密模式可能停用儲存 */ }
+      try { localStorage.setItem(BOOKINGS_KEY, JSON.stringify(state)); } catch (_) { /* 私密模式可能停用儲存 */ }
     };
 
     const localDate = iso => {
