@@ -1,9 +1,15 @@
 /* Greece 2026 offline service worker */
-const CACHE = "greece-2026-v2";
+const CACHE = "greece-2026-v3";
 const PRECACHE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
+// 行程改版後要讓已安裝的 App 立刻拿到新版：改這裡的 CACHE 版號，install 會重抓一份
+// （{cache: "reload"} 繞過 HTTP 快取），activate 再把舊版整包刪掉。
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(PRECACHE.map(url => new Request(url, { cache: "reload" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", event => {
