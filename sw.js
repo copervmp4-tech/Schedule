@@ -1,5 +1,5 @@
 /* Greece 2026 offline service worker */
-const CACHE = "greece-2026-v3";
+const CACHE = "greece-2026-v4";
 const PRECACHE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 // 行程改版後要讓已安裝的 App 立刻拿到新版：改這裡的 CACHE 版號，install 會重抓一份

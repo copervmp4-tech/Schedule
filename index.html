@@ -539,7 +539,7 @@
     .weather-live { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--navy-900); color: #fff; font-size: .6rem; font-weight: var(--weight-bold); letter-spacing: .14em; }
     .weather-live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: weatherPulse 1.6s ease-in-out infinite; }
     @keyframes weatherPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-    .weather-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .weather-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
     .weather-card { padding: var(--space-4); border-radius: var(--radius-md); background: var(--surface-overlay); border: 1px solid rgba(83, 118, 128, .12); }
     .weather-head { display: flex; align-items: baseline; gap: 8px; }
     .weather-icon { font-size: 1.1rem; }
@@ -555,7 +555,7 @@
     .weather-day strong { color: var(--ink); font-weight: var(--weight-medium); }
     .weather-days-note { margin: 10px 0 0; color: var(--muted); font-size: .75rem; }
     .weather-error button { margin-left: 8px; padding: 4px 12px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--white); color: var(--ink); cursor: pointer; font-size: .8rem; font-weight: var(--weight-bold); }
-    @media (min-width: 561px) { .weather-grid { grid-template-columns: repeat(4, 1fr); } }
+    /* 欄數改由 auto-fit 依實際容器寬度決定（每張卡至少 240px），手機自動變單欄，逐日預報列不再被擠壓 */
 
     footer { padding: 28px 20px calc(40px + var(--safe-bottom)); color: rgba(255, 255, 255, .65); text-align: center; background: var(--navy-950); }
     footer strong { color: var(--white); }
@@ -1674,7 +1674,12 @@
           I("15:30–18:15", "米克諾斯鎮 (Mykonos Town)", "景點", "定位：Fabrika Square。|Matogianni Street：白牆、藍窗、九重葛的招牌街景，精品店集中在此。|帕拉波爾提亞尼教堂 (Panagia Paraportiani)：五座小教堂融成一體的雪白曲面建築，基克拉澤斯建築代表作。|小威尼斯 (Little Venice)：彩色木陽台懸在海上，浪直接打在牆腳。", "Fabrika Square, Mykonos, Greece", "walking"),
           I("18:15–19:00", "甜點：SNOW Gelato", "餐飲", "手工冰淇淋|Pistachio Gelato / 開心果冰淇淋|米克諾斯在地鮮乳製作，店後方有面海座位。", "Snow Gelato, Mykonos, Greece", "walking"),
           I("19:00–19:50", "卡托米利風車 (Kato Mili) 看日落", "景點", "日落約 19:40；五座風車正對海面，是全鎮日落正面位。", "Kato Mili, Mykonos, Greece", "walking", "重要提醒"),
-          I("20:00–21:30", "晚餐：M-eating", "餐飲", "現代希臘料理|Slow-cooked Lamb / 慢煮嫩羊羔|Sous-vide Beef Fillet / 低溫真空牛菲力|Mushroom Risotto / 牛肝菌野菇燉飯", "M-eating Restaurant, Mykonos, Greece", "walking", "已預訂")
+          I("20:00–21:30", "晚餐：M-eating", "餐飲", "現代希臘料理|Slow-cooked Lamb / 慢煮嫩羊羔|Sous-vide Beef Fillet / 低溫真空牛菲力|Mushroom Risotto / 牛肝菌野菇燉飯", "M-eating Restaurant, Mykonos, Greece", "walking", "已預訂"),
+          I("21:30–21:40", "返回飯店（叫車）", "交通", "晚餐後叫車上山，約 5 分鐘 €6–10。|不要步行：全程上坡 15 分鐘，會再流一身汗。", "Nodo Boutique Hotel, Mykonos, Greece", "driving"),
+          I("21:40–22:45", "Nodo Boutique Hotel 沖澡換裝", "住宿", "沖掉一整天的汗，換上晚間服裝。|Queen 為 smart casual，襯衫/洋裝即可，不需正式。|座位在戶外街上，島上夜間 meltemi 風大，務必帶薄外套。", "Nodo Boutique Hotel, Mykonos, Greece", "walking"),
+          I("22:45–23:00", "步行下山至鎮中心", "交通", "下坡約 10–15 分鐘，夜間涼爽，不會流汗。", "Tria Pigadia, Mykonos, Greece", "walking", "選配"),
+          I("23:00–01:30", "Queen of Mykonos (香檳雞尾酒街邊酒吧)", "餐飲", "定位：Enoplon Dinameon 街，Tria Pigadia 一帶，鄰近海事博物館。|音樂：DJ 播 RnB、Hip-Hop、Dance 與商業流行熱門曲，有人聲、聽得出來的歌，非 techno 器樂。偶有小提琴或薩克斯風現場配樂，無真人演唱。|營業 21:00–04:00，00:30 之後為最精華段落。|座位主要在戶外行人街上，露天街邊派對形式，非密閉舞池。|不需訂位、無最低消。|預算：雞尾酒 €18–22/杯，兩人抓 €80–120。|刷卡前確認螢幕金額並索取收據。", "Queen of Mykonos, Mykonos, Greece", "walking", "選配"),
+          I("01:30", "叫車返回飯店", "交通", "€6–10。深夜不步行上坡。", "Nodo Boutique Hotel, Mykonos, Greece", "driving", "選配")
         ]
       },
       {
@@ -1857,7 +1862,9 @@
 
     const riskItems = [
       { title: "渡輪與 meltemi", text: "9 月上旬 Cyclades 可能吹強風，高速船最易停航。前一晚查 SeaJets；若 9/9 停航，改隔日早班船，聖島行程順延壓縮。" },
-      { title: "EES 入出境", text: "歐盟出入境系統已全面上線，首次入境雅典需按指紋＋拍照，預留 60–90 分鐘通關。" }
+      { title: "EES 入出境", text: "歐盟出入境系統已全面上線，首次入境雅典需按指紋＋拍照，預留 60–90 分鐘通關。" },
+      { title: "Queen of Mykonos (9/6)", text: "為選配項目。21:40 回飯店後若疲累，直接休息不再出門，不影響隔日 Platis Gialos 行程。" },
+      { title: "Queen 改期原則", text: "若 9/6 放棄，改排 9/8 (週二) 同樣流程（9/9 早上 10:00 才需起床）。絕不改排 9/7 (週一)，因隔日 Delos 為全程曝曬最重的一天。" }
     ];
 
     const h = value => String(value ?? "").replace(/[&<>\"']/g, char => ({
