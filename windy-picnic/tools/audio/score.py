@@ -85,7 +85,7 @@ def build():
         chord('harp', t + 2 * beat, ch, 0.45, 0.3)
     # Pooh's theme, lightly, on pizzicato violins
     line('vlnpz', bars[0], beat, [('C5', 1), ('F5', 1), ('F5', 1), ('G5', 1), ('A5', 1), ('F5', 1), ('Bb5', 1), ('A5', 1), ('G5', 1), ('F5', 2), ('C5', 1)], 0.45)
-    n('glock', 10.42, 'C6', 0.6, 0.35)  # the pot set down
+    n('glock', 10.63, 'C6', 0.6, 0.35)  # the pot set down
     chord('vla', bars[4], ['A3', 'D4'], 1.5, 0.22)
     # Piglet pops up: his little flute flutter
     for i, nm in enumerate(['C6', 'D6', 'C6', 'A5']):

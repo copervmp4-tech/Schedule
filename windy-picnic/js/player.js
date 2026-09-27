@@ -128,8 +128,20 @@
     }
   }
 
+  // If frames are slow (no accelerated canvas), switch to the lighter render after a short while.
+  const perf = { avg: 0, slow: 0, lite: false };
   function draw(t) {
-    WP.film.render(ctx, Math.min(t, DUR), { cues: CUES, subtitles: state.captions });
+    const t0 = performance.now();
+    WP.film.render(ctx, Math.min(t, DUR), { cues: CUES, subtitles: state.captions, lite: perf.lite });
+    if (state.playing && !perf.lite) {
+      const ms = performance.now() - t0;
+      perf.avg = perf.avg ? perf.avg * 0.9 + ms * 0.1 : ms;
+      perf.slow = perf.avg > 30 ? perf.slow + 1 : 0;
+      if (perf.slow > 45) {
+        perf.lite = true;
+        console.info('The Windy Picnic: switching to the lighter render for smoother playback.');
+      }
+    }
     const p = Math.min(1, t / DUR);
     ui.fill.style.width = p * 100 + '%';
     ui.scrub.setAttribute('aria-valuenow', t.toFixed(1));
@@ -320,5 +332,5 @@
   });
 
   // for automated checks
-  window.PLAYER = { state, Sound, play, pause, replay, seek };
+  window.PLAYER = { state, perf, Sound, play, pause, replay, seek };
 })();

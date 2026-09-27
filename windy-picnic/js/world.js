@@ -232,6 +232,7 @@
       g.save();
       g.clip(sh);
       ink.hatch(g, [-w, -h, w * 2, h], { angle: -1.45, spacing: 2.4, w: 1.1, alpha: 0.8, seed: seed + 4, minLen: 0.03, lenVar: 0.12, gapVar: 1.2 });
+      ink.hatch(g, [-w, -h, w * 2, h], { angle: -0.42, spacing: 4.2, w: 0.9, alpha: 0.38, seed: seed + 6, minLen: 0.02, lenVar: 0.06, gapVar: 2.2 });
       g.restore();
       ink.hatch(g, [-w, -h, w * 2, h], { angle: -1.53, spacing: 7, w: 1, alpha: 0.5, seed: seed + 5, minLen: 0.05, lenVar: 0.2, gapVar: 3 });
       g.restore();
@@ -268,6 +269,7 @@
       g.save();
       g.clip(sh);
       ink.hatch(g, [-w, -h, w * 2, h], { angle: -1.47, spacing: 2.6, w: 1.1, alpha: 0.75, seed: 503, minLen: 0.03, lenVar: 0.14, gapVar: 1.3 });
+      ink.hatch(g, [-w, -h, w * 2, h], { angle: -0.45, spacing: 4.4, w: 0.9, alpha: 0.35, seed: 507, minLen: 0.02, lenVar: 0.06, gapVar: 2.2 });
       g.restore();
       ink.hatch(g, [-w, -h, w * 2, h], { angle: -1.54, spacing: 8, w: 1, alpha: 0.45, seed: 504, minLen: 0.05, lenVar: 0.2, gapVar: 3 });
       g.restore();

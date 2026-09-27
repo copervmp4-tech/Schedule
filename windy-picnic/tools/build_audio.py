@@ -86,7 +86,7 @@ def build_sfx(ev):
     P(X.cloth_poof(0.8), 9.1, -15, 0.0)
     # the honey pot
     P(X.ceramic(0.25, thud=0.2, seed=1), T['potPick'] + 0.02, -24, -0.15)
-    P(X.ceramic(0.4, seed=2), T['potPlace'], -13, -0.05)
+    P(X.ceramic(0.4, seed=2), T['potPlace'] + 0.22, -13, -0.05)  # the pot settles onto the cloth 0.22 s after it is put down
     # Piglet pops up from the long grass and trots over
     P(X.grass_rustle(0.55), T['pigletPop'] - 0.03, -14, 0.35)
     P(X.grass_rustle(0.45), 13.3, -18, 0.3)

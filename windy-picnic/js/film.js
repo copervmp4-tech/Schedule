@@ -831,8 +831,9 @@
     s.globalCompositeOperation = 'source-over';
     s.clearRect(bb.x - 8, bb.y - 8, bb.w + 16, bb.h + 16);
     const m = 3.2 * Math.sqrt(xf.z);
-    for (let i = 0; i < 8; i++) {
-      const an = (i / 8) * TAU;
+    const taps = LITE ? 4 : 8;
+    for (let i = 0; i < taps; i++) {
+      const an = (i / taps) * TAU + (LITE ? Math.PI / 4 : 0);
       s.drawImage(ACT, bb.x, bb.y, bb.w, bb.h, bb.x + Math.cos(an) * m, bb.y + Math.sin(an) * m, bb.w, bb.h);
     }
     s.globalCompositeOperation = 'source-in';
@@ -984,18 +985,18 @@
     P.bands = now() - q; q = now();
     drawGround(ctx, gxf, t);
     P.ground = now() - q; q = now();
-    sunPool(ctx, gxf, t);
+    if (!LITE) sunPool(ctx, gxf, t);
     drawActors(ctx, gxf, t);
     P.actors = now() - q; q = now();
     drawForeground(ctx, cam, t);
     P.fg = now() - q; q = now();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     drawLeaves(ctx, t, cam);
-    dapple(ctx, t, cam);
+    if (!LITE) dapple(ctx, t, cam);
     P.fx = now() - q;
     sunRays(ctx, t, seg(t, 39.5, 42) * (t < T.cut2 ? 1.25 : 0.7) + seg(t, 52, 56) * 0.5);
     // painterly light: warm from the upper left, a soft sepia shade gathering low on the right
-    const L1 = 0.5 + 0.25 * seg(t, 39.5, 43);
+    const L1 = (0.5 + 0.25 * seg(t, 39.5, 43)) * (LITE ? 0 : 1);
     ctx.globalCompositeOperation = 'soft-light';
     let lg = ctx.createLinearGradient(0, 0, W, H);
     lg.addColorStop(0, `rgba(255,236,196,${0.55 * L1})`);
@@ -1230,6 +1231,8 @@
 
   function render(ctx, t, opts = {}) {
     t = clamp(t, 0, DUR);
+    // lite: a lighter render for machines without accelerated canvas (a few blend passes skipped)
+    LITE = !!opts.lite;
     const sctx = SCENE.getContext('2d');
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -1258,6 +1261,7 @@
   }
 
   const PROF = {};
+  let LITE = false;
   let SNAP = null;
   function makeTitleSnapshot(t) {
     if (!SNAP) SNAP = makeCanvas(W, H);

@@ -78,7 +78,9 @@
     if (st.wash) {
       ctx.save();
       // watercolour laid a touch off the ink line, as a colourist would
-      ctx.translate(st.reg?.[0] ?? 1.2, st.reg?.[1] ?? 1);
+      // (no offset on limbs, whose joins would show a paper-white sliver)
+      const reg = st.open ? [0, 0] : st.reg ?? [1.2, 1];
+      ctx.translate(reg[0], reg[1]);
       ink.wash(ctx, path, st.wash, { alpha: st.washA ?? 0.34, edge: st.edge ?? 0.55, edgeW: st.edgeW ?? 7, texAlpha: 0.5 });
       ctx.restore();
     }
@@ -86,11 +88,16 @@
       const [dx, dy] = st.shade;
       ink.shadeCrescent(ctx, path, bbox(P), dx, dy, {
         angle: st.hAngle ?? -1.0, spacing: st.hSp ?? 3.6, w: st.hW ?? 0.85, alpha: st.hA ?? 0.62,
-        seed: st.seed ?? 1, color: PAL.ink, wash: st.shadeWash ?? PAL.sepia, washAlpha: st.shadeWashA ?? 0.12, minLen: 0.1, lenVar: 0.45, bend: 1.5,
+        seed: st.seed ?? 1, color: PAL.ink, wash: st.shadeWash ?? PAL.sepia, washAlpha: st.shadeWashA ?? 0.12, minLen: 0.1, lenVar: 0.45, bend: 1.5, cross: st.cross ?? 0,
       });
     }
     if (st.outline !== false) {
-      ink.outline(ctx, P, { w: (st.lw ?? 2.6) * 0.92, seed: st.seed ?? 1, breaks: st.breaks ?? 4, wobble: st.wob ?? 0.9, press: 0.55, gap: 0.01, color: PAL.ink });
+      const o = { w: (st.lw ?? 2.6) * 0.92, seed: st.seed ?? 1, breaks: st.breaks ?? 4, wobble: st.wob ?? 0.9, press: 0.55, gap: 0.01, color: PAL.ink };
+      if (st.open) {
+        // `open` = [from, to] fraction of the outline to leave un-inked (where a limb joins the body)
+        const [a, b] = st.open;
+        ink.stroke(ctx, ink.slice(P, b, 1 + a, true), { ...o, taper: [0.06, 0.06] });
+      } else ink.outline(ctx, P, o);
     }
     if (st.fur) for (const f of st.fur) ink.ticks(ctx, P, { from: f[0], to: f[1], density: f[2] ?? 0.1, len: f[3] ?? 4, w: 1.15, seed: (st.seed ?? 1) + f[0] * 10, side: -1, prob: 0.75, lean: 0.9 });
   }
@@ -123,25 +130,25 @@
     leg: [[-18, -14], [18, -14], [20, 18], [22, 34], [31, 40], [33, 48], [24, 52], [-12, 52], [-21, 44], [-20, 16]],
     legSit: [[-18, -14], [18, -14], [20, 18], [22, 34], [30, 40], [30, 48], [22, 52], [-12, 52], [-21, 44], [-20, 16]],
     body: [[-48, 6], [-12, 16], [28, 12], [50, -10], [57, -46], [50, -84], [34, -112], [14, -128], [-20, -128], [-40, -110], [-50, -76], [-54, -38], [-54, -8]],
-    head: [[0, -95], [24, -90], [40, -76], [46, -63], [52, -56], [62, -53], [68, -46], [67, -37], [60, -31], [50, -26], [40, -15], [26, -4], [4, 0], [-22, -4], [-40, -18], [-47, -42], [-42, -70], [-26, -89]],
+    head: [[0, -95], [24, -90], [40, -76], [46, -63], [50, -57], [57, -54], [62, -47], [61, -38], [55, -32], [47, -27], [39, -15], [26, -4], [4, 0], [-22, -4], [-40, -18], [-47, -42], [-42, -70], [-26, -89]],
     ear: [[-13, 5], [-15, -6], [-10, -15], [0, -18], [10, -15], [15, -6], [13, 5]],
   };
 
   function poohEar(ctx, x, y, rot, wind, t, seed) {
     at(ctx, x, y, rot + wind * 0.22 * Math.sin(t * 19 + seed), () => {
-      part(ctx, POOH.ear, { wash: PAL.poohFur, washA: 0.42, lw: 2.3, seed, breaks: 2 });
+      part(ctx, POOH.ear, { wash: PAL.poohFur, washA: 0.42, lw: 2.3, seed, breaks: 2, open: [0.86, 1.0] });
       ink.line(ctx, [[-6, 1], [-6, -7], [0, -11], [6, -7], [6, 1]], { w: 1.2, seed: seed + 2, taper: [0.3, 0.3], alpha: 0.7 });
     });
   }
 
   function poohArm(ctx, pose, near, seed) {
     const tb = tube(74, 31, 25, near ? pose.armNCurl : pose.armFCurl);
-    part(ctx, tb.pts, { wash: PAL.poohFur, washA: 0.36, lw: 2.5, seed, breaks: 3, shade: pose.shade, hSp: 3.8, fur: near ? [[0.02, 0.3, 0.1, 3.5]] : null }, 3);
+    part(ctx, tb.pts, { wash: PAL.poohFur, washA: 0.36, lw: 2.5, seed, breaks: 3, shade: pose.shade, hSp: 3.8, open: [0.955, 1.0], fur: near ? [[0.05, 0.3, 0.1, 3.5]] : null }, 3);
     return tb;
   }
 
   function poohLeg(ctx, pose, near, seed) {
-    part(ctx, pose.sit > 0.5 ? POOH.legSit : POOH.leg, { wash: PAL.poohFur, washA: 0.36, lw: 2.7, seed, breaks: 3, shade: pose.shade, hSp: 3.8 });
+    part(ctx, pose.sit > 0.5 ? POOH.legSit : POOH.leg, { wash: PAL.poohFur, washA: 0.36, lw: 2.7, seed, breaks: 3, shade: pose.shade, hSp: 3.8, open: [0.0, 0.1] });
     if (pose.sit > 0.5 && near) {
       // the sole shows when the legs stick out in front
       at(ctx, 26, 43, -0.15, () => {
@@ -174,7 +181,7 @@
     bodyFrame();
     at(ctx, -26, -104, -pose.armF, () => poohArm(ctx, pose, false, 31));
     part(ctx, POOH.body, {
-      wash: PAL.poohFur, washA: 0.34, lw: 2.9, seed: 11, breaks: 4, shade: pose.shade, hSp: 3.5, hA: 0.6,
+      wash: PAL.poohFur, washA: 0.34, lw: 2.9, seed: 11, breaks: 4, shade: pose.shade, hSp: 3.5, hA: 0.6, cross: 0.55,
       fur: [[0.66, 0.92, 0.09, 4.5], [0.28, 0.36, 0.08, 3]],
     });
     // the round of the tummy
@@ -193,13 +200,13 @@
     ctx.rotate(pose.head);
     ctx.scale(0.94, 0.94);
     poohEar(ctx, -26, -86, -0.3, pose.earWind, t, 41);
-    const H = part(ctx, POOH.head, { wash: PAL.poohFur, washA: 0.34, lw: 2.8, seed: 51, breaks: 4, shade: pose.shade, hSp: 3.5, hA: 0.5, fur: [[0.74, 0.99, 0.09, 4]] });
+    const H = part(ctx, POOH.head, { wash: PAL.poohFur, washA: 0.34, lw: 2.8, seed: 51, breaks: 4, shade: pose.shade, hSp: 3.5, hA: 0.5, cross: 0.5, fur: [[0.74, 0.99, 0.09, 4]] });
     // where the muzzle meets the face
-    ink.line(ctx, [[47, -62], [45, -50], [47, -36]], { w: 1.2, seed: 52, alpha: 0.5, taper: [0.4, 0.4] });
+    ink.line(ctx, [[46, -62], [44, -50], [45, -37]], { w: 1.1, seed: 52, alpha: 0.4, taper: [0.4, 0.4] });
     // nose
     ctx.fillStyle = PAL.ink;
     ctx.beginPath();
-    ctx.ellipse(64.5, -46, 5.4, 4.4, 0.2, 0, TAU);
+    ctx.ellipse(59.5, -46, 5.2, 4.3, 0.2, 0, TAU);
     ctx.fill();
     // eye (a dot; blinks to a short line; 2 = a contented closed curve)
     const ex = 31 + pose.lookX * 2, ey = -59 + pose.lookY * 2;
@@ -221,11 +228,11 @@
       ctx.strokeStyle = PAL.ink;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.ellipse(57, -33, 2.6, 3.1, 0, 0, TAU);
+      ctx.ellipse(53, -33.5, 2.5, 3, 0, 0, TAU);
       ctx.stroke();
     } else {
       const m = pose.mouth;
-      ink.line(ctx, [[62, -37], [57, -33.5 + m * 2], [51, -35.5 - m * 1.4]], { w: 1.45, seed: 56, taper: [0.3, 0.4] });
+      ink.line(ctx, [[58, -37.5], [53.5, -34 + m * 2], [48, -35.5 - m * 1.4]], { w: 1.4, seed: 56, taper: [0.3, 0.4] });
     }
     poohEar(ctx, 18, -90, 0.22, pose.earWind, t + 0.3, 42);
     ctx.restore();
@@ -248,8 +255,8 @@
 
   const PIG = {
     leg: [[-5, -6], [5, -6], [5.5, 10], [9, 14], [11, 18], [7, 21], [-5, 21], [-6.5, 12]],
-    body: [[-22, 4], [0, 8], [22, 4], [25, -18], [23, -40], [15, -54], [0, -59], [-13, -57], [-22, -46], [-25, -20]],
-    head: [[-2, -56], [12, -54], [22, -46], [28, -40], [36, -37], [42, -33], [43, -26], [38, -21], [28, -17], [20, -8], [6, -3], [-10, -5], [-21, -15], [-26, -31], [-22, -46], [-13, -54]],
+    body: [[-20, 4], [0, 8], [20, 4], [23, -18], [21, -40], [14, -54], [0, -59], [-12, -57], [-20, -46], [-23, -20]],
+    head: [[-2, -57], [12, -55], [22, -47], [27, -41], [33, -38.5], [37.5, -35], [38.5, -28.5], [35, -23.5], [27, -19], [20, -8], [6, -3], [-10, -5], [-21, -15], [-25, -31], [-21, -47], [-13, -55]],
     ear: [[-6, 2], [-6, -8], [-2, -19], [1, -25], [5, -12], [7, 2]],
     sleeve: [[-7, -7], [7, -7], [7.5, 6], [0, 8.5], [-7.5, 6]],
   };
@@ -263,14 +270,14 @@
         const c = Math.cos(ang), s = Math.sin(ang);
         return [px * c - py * s, px * s + py * c];
       });
-      part(ctx, pts, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.9, seed, breaks: 2, edge: 0.6 }, 6);
+      part(ctx, pts, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.9, seed, breaks: 2, edge: 0.6, open: [0.84, 1.0] }, 6);
       ink.line(ctx, [[0.5, -1], [pts[3][0] * 0.55, pts[3][1] * 0.55]], { w: 0.9, seed: seed + 1, alpha: 0.55, taper: [0.3, 0.3] });
     });
   }
 
   function pigArm(ctx, pose, near, seed) {
     const tb = tube(27, 8, 7, near ? pose.armNCurl : pose.armFCurl, 8);
-    part(ctx, tb.pts, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.6, seed, breaks: 2, edge: 0.5 }, 3);
+    part(ctx, tb.pts, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.6, seed, breaks: 2, edge: 0.5, open: [0.955, 1.0] }, 3);
     const sl = part(ctx, PIG.sleeve, { wash: PAL.mossDeep, washA: 0.7, lw: 1.7, seed: seed + 3, breaks: 1 }, 5);
     ctx.save();
     ctx.clip(sl.path);
@@ -285,7 +292,7 @@
   }
 
   function pigLeg(ctx, pose, seed) {
-    part(ctx, PIG.leg, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.7, seed, breaks: 2, edge: 0.5 }, 6);
+    part(ctx, PIG.leg, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.7, seed, breaks: 2, edge: 0.5, open: [0.0, 0.12] }, 6);
   }
 
   function jumper(ctx, pose) {
@@ -344,22 +351,22 @@
     ctx.translate(1 + pose.headX, -52 + pose.headY);
     ctx.rotate(pose.head);
     pigEar(ctx, -13, -48, -0.42 + pose.earF, -0.5 * pose.earF, pose.earWind, t, 141);
-    part(ctx, PIG.head, { wash: PAL.pigletSkin, washA: 0.5, lw: 2.2, seed: 151, breaks: 4, shade: pose.shade, hSp: 3.1, hA: 0.45, edge: 0.6 });
+    part(ctx, PIG.head, { wash: PAL.pigletSkin, washA: 0.5, lw: 2.2, seed: 151, breaks: 4, shade: pose.shade, hSp: 3.1, hA: 0.45, edge: 0.6, cross: 0.45 });
     if (pose.blush > 0) ink.bloom(ctx, 15, -17, 8, '#d99a80', 0.3 * pose.blush, 0.8);
     // flat end of the snout
     ctx.save();
-    ctx.translate(42, -29);
-    ctx.rotate(-0.12);
+    ctx.translate(37.6, -31.5);
+    ctx.rotate(-0.14);
     ctx.beginPath();
-    ctx.ellipse(0, 0, 2.2, 5.2, 0, 0, TAU);
+    ctx.ellipse(0, 0, 1.6, 3.6, 0, 0, TAU);
     ctx.fillStyle = rgba('#dca78f', 0.8);
     ctx.fill();
     ctx.restore();
-    ink.line(ctx, [[28, -40], [27, -30], [28, -19]], { w: 1.0, seed: 153, alpha: 0.45, taper: [0.4, 0.4] });
+    ink.line(ctx, [[27, -40], [26, -31], [27, -21]], { w: 0.9, seed: 153, alpha: 0.35, taper: [0.4, 0.4] });
     ctx.fillStyle = PAL.ink;
     ctx.beginPath();
-    ctx.ellipse(42.5, -31.5, 0.9, 1.5, 0, 0, TAU);
-    ctx.ellipse(42.2, -26.5, 0.9, 1.5, 0, 0, TAU);
+    ctx.ellipse(38.2, -33.2, 0.8, 1.3, 0, 0, TAU);
+    ctx.ellipse(38.0, -29.6, 0.8, 1.3, 0, 0, TAU);
     ctx.fill();
     // eye
     const ex = 22 + pose.lookX * 1.5, ey = -40 + pose.lookY * 1.5;
@@ -377,16 +384,16 @@
       ctx.strokeStyle = PAL.ink;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.ellipse(32, -21, 1.9, 2.4, 0, 0, TAU);
+      ctx.ellipse(29.5, -20.5, 1.8, 2.3, 0, 0, TAU);
       ctx.stroke();
     } else {
       const m = pose.mouth;
-      ink.line(ctx, [[37, -22], [32, -19 + m * 1.6], [26, -21 - m * 1.1]], { w: 1.2, seed: 156, taper: [0.3, 0.4] });
+      ink.line(ctx, [[33.5, -22.5], [29.5, -19.5 + m * 1.6], [24.5, -21 - m * 1.1]], { w: 1.15, seed: 156, taper: [0.3, 0.4] });
     }
     pigEar(ctx, 6, -53, 0.18 + pose.earN, 0.45 * pose.earN, pose.earWind, t + 0.4, 142);
     ctx.restore();
     if (pose.hold && pose.holdFn) pose.holdFn(ctx);
-    at(ctx, 13, -45, -pose.armN, () => pigArm(ctx, pose, true, 132));
+    at(ctx, 12, -45, -pose.armN, () => pigArm(ctx, pose, true, 132));
     ctx.restore();
     ctx.restore();
   }

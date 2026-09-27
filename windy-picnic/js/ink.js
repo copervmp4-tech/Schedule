@@ -215,6 +215,17 @@
       ctx.globalAlpha = 1;
     }
     hatch(ctx, bbox, o);
+    if (o.cross) {
+      // crosshatch only the deepest part of the shadow: a thinner crescent, strokes at a crossing angle
+      ctx.restore();
+      ctx.save();
+      ctx.clip(path);
+      const deep = new Path2D();
+      deep.addPath(path);
+      deep.addPath(path, new DOMMatrix([1, 0, 0, 1, dx * 0.45, dy * 0.45]));
+      ctx.clip(deep, 'evenodd');
+      hatch(ctx, bbox, { ...o, angle: (o.angle ?? -0.9) + 1.15, spacing: (o.spacing ?? 6) * 1.35, alpha: (o.alpha ?? 0.8) * o.cross, seed: (o.seed ?? 5) + 99 });
+    }
     ctx.restore();
   }
 
