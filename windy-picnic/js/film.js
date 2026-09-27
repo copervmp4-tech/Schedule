@@ -1,0 +1,1283 @@
+/* The Windy Picnic — the film itself: camera, choreography and frame rendering.
+   render(ctx, t) draws the complete frame for film time t (seconds). */
+(function () {
+  const WP = window.WP;
+  const { PAL, lerp, clamp, invLerp, smooth, ease, seg, wobble, track, rng, TAU, rgba, fbm1, noise1, makeCanvas } = WP;
+  const ink = WP.ink;
+  const { drawPooh, drawPiglet, walkCycle, blinkAt } = WP.chars;
+  const { drawPot, drawBee, drawLeaf } = WP.props;
+  const CL = WP.cloth;
+  const W = 1920, H = 1080;
+  const DUR = 60;
+
+  /* ================================================================ timing */
+
+  const T = {
+    pageTurn: [4.35, 5.4],
+    fling: 7.35, clothDown: 9.25,
+    potPick: 9.55, potPlace: 10.4,
+    present: 11.05, pigletPop: 12.36, pigletOut: 13.4, pigletStop: 14.35,
+    forMe: 14.72, forUs: 17.2, hop: 18.15,
+    leaf: 19.5, lift: 20.8, gust: 23.05, cut1: 25.2,
+    run: 26.75, snag: 33.75, free: 34.95, bump: 35.35, rise: 38.75, walk: 39.25, land: 42.8,
+    cut2: 45.0, offer: 45.7, dip: 46.75, taste: 47.35, set: 48.6, poohDip: 49.1, lean: 51.3,
+    pull: 51.0, plate: [55.6, 57.4], end: 57.5,
+  };
+
+  /* ================================================================ wind */
+
+  function wind(t) {
+    let w = 0.16 + 0.05 * noise1(t * 0.7);
+    w += 0.45 * seg(t, 19.3, 22.6) + 0.55 * seg(t, 22.4, 23.05, ease.inCubic) - 0.5 * seg(t, 23.4, 25.5);
+    w -= 0.05 * seg(t, 26, 27);
+    w -= 0.2 * seg(t, 35, 39) + 0.12 * seg(t, 40, 43);
+    return clamp(w + 0.08 * noise1(t * 2.3 + 4) * seg(t, 19, 20), 0.05, 1.2);
+  }
+  const WINT = new Float32Array(DUR * 100 + 2);
+  for (let i = 1; i < WINT.length; i++) WINT[i] = WINT[i - 1] + wind(i / 100) / 100;
+  const windInt = (t) => WINT[clamp(Math.floor(t * 100), 0, WINT.length - 1)];
+
+  /* ================================================================ camera */
+
+  function camera(t) {
+    let c;
+    if (t < T.gust) {
+      c = track([
+        [0, [70, -232, 1.18]], [5.2, [70, -232, 1.18]],
+        [9.5, [222, -196, 1.42], ease.inOutSine], [14.2, [335, -176, 1.62], ease.inOutSine],
+        [16.0, [372, -160, 1.95], ease.inOutSine], [19.2, [378, -160, 2.0], ease.inOutSine],
+        [22.9, [392, -176, 1.8], ease.inOutSine], [23.05, [392, -176, 1.8]],
+      ], t);
+    } else if (t < T.cut1) {
+      c = track([[23.05, [392, -176, 1.8]], [24.1, [610, -330, 1.3], ease.inOutCubic], [25.2, [730, -420, 1.16], ease.outQuad]], t);
+    } else if (t < 26.6) {
+      c = track([[25.2, [348, -150, 2.15]], [26.6, [362, -156, 2.05], ease.inOutSine]], t);
+    } else if (t < 33.4) {
+      const px = poohX(t) + 250;
+      const k = seg(t, 26.6, 27.7, ease.inOutSine);
+      c = [lerp(362, px, k), lerp(-156, -212, k), lerp(2.05, 1.36, k)];
+    } else if (t < 35.3) {
+      const k = seg(t, 33.4, 34.4, ease.inOutSine);
+      c = [lerp(poohX(33.4) + 250, 3345, k), lerp(-212, -218, k), lerp(1.36, 1.6, k)];
+    } else if (t < 39.2) {
+      c = track([[35.3, [3345, -218, 1.6]], [36.0, [3318, -180, 1.84], ease.inOutSine], [38.9, [3322, -184, 1.88], ease.inOutSine], [39.2, [3330, -190, 1.84]]], t);
+    } else if (t < T.cut2) {
+      c = track([[39.2, [3330, -190, 1.84]], [40.4, [3520, -250, 1.36], ease.inOutSine], [42.9, [4110, -262, 1.14], ease.inOutSine], [45, [4125, -250, 1.2], ease.inOutSine]], t);
+    } else {
+      c = track([[45, [4142, -118, 2.2]], [51.0, [4148, -122, 2.34], ease.inOutSine], [57.2, [4150, -330, 0.94], ease.inOutCubic], [60, [4150, -334, 0.92]]], t);
+    }
+    return { x: c[0], y: c[1], z: c[2] };
+  }
+
+  function layerXf(cam, p) {
+    const z = Math.pow(cam.z, p);
+    return { z, ox: W / 2 - cam.x * p * z, oy: H / 2 - cam.y * p * z };
+  }
+
+  /* ================================================================ Pooh */
+
+  const RUN0 = 26.75, RUN1 = 34.0;
+  function poohX(t) {
+    if (t < 9.8) return 205;
+    if (t < RUN0) return lerp(205, 222, seg(t, 9.8, 10.1));
+    if (t < RUN1) {
+      // accelerate, run, and pull up by the gorse
+      const a = 26.75, b = 27.35, c = 33.3, d = 34.0;
+      const v = 455;
+      if (t < b) return 222 + v * 0.5 * ((t - a) * (t - a)) / (b - a);
+      const xb = 222 + v * 0.5 * (b - a);
+      if (t < c) return xb + v * (t - b);
+      const xc = xb + v * (c - b);
+      const u = (t - c) / (d - c);
+      return xc + v * (d - c) * (u - 0.5 * u * u);
+    }
+    if (t < T.walk) return poohX(RUN1 - 1e-6);
+    if (t < 42.7) return poohX(RUN1 - 1e-6) + 185 * (t - T.walk) - 185 * 0.5 * Math.pow(seg(t, 42.2, 42.7), 2) * 0.5;
+    if (t < T.cut2) return poohX(42.699);
+    return 4060;
+  }
+  const POOH_STRIDE = 150;
+
+  const poohTracks = {
+    lean: [[0, 0], [6.5, 0], [6.95, -0.07], [7.35, 0.1, ease.outQuad], [7.9, 0], [9.3, 0], [9.52, 0.36], [9.62, 0.34], [9.9, 0.03], [10.12, 0.05], [10.36, 0.3], [10.55, 0.28], [10.8, 0.02],
+      [16.9, 0.0], [17.45, 0.15], [18.5, 0.12], [19.1, 0], [22.6, 0.03], [23.1, -0.13, ease.outQuad], [23.7, -0.06], [24.4, 0], [25.2, 0.12], [25.75, 0.1], [25.95, 0], [26.2, 0.02], [26.4, 0.32], [26.55, 0.3], [26.7, -0.1], [26.85, 0.05]],
+    armN: [[0, 0.62], [6.9, 0.62], [7.12, 0.3], [7.35, 1.95, ease.outQuad], [7.8, 1.35], [8.5, 0.35], [9.3, 0.35], [9.5, 0.95], [9.62, 0.95], [9.85, 0.6], [10.2, 0.62], [10.38, 1.05], [10.52, 1.05], [10.65, 0.85], [10.72, 1.0], [10.9, 0.3],
+      [11.3, 1.4, ease.outBack], [12.3, 1.35], [12.7, 0.45], [16.9, 0.32], [17.4, 1.25, ease.outBack], [18.0, 1.1], [18.6, 0.35], [22.9, 0.3], [23.12, 0.85, ease.outQuad], [23.7, 0.55], [24.5, 0.32], [26.2, 0.35], [26.42, 1.0], [26.55, 0.62]],
+    armNCurl: [[0, 0.95], [6.9, 0.95], [7.2, 0.2], [8.5, 0.35], [9.5, 0.3], [9.85, 0.95], [10.3, 0.4], [10.9, 0.35], [11.3, -0.15], [12.3, -0.1], [12.7, 0.35], [17.3, 0.35], [17.4, -0.2], [18.1, -0.1], [18.6, 0.35], [26.3, 0.35], [26.55, 0.9]],
+    armF: [[0, 0.55], [6.9, 0.55], [7.12, 0.25], [7.35, 1.75, ease.outQuad], [7.8, 1.2], [8.5, 0.25], [9.3, 0.25], [9.5, 0.85], [9.62, 0.85], [9.85, 0.5], [10.2, 0.5], [10.38, 0.9], [10.52, 0.9], [10.9, 0.2], [22.9, 0.22], [23.12, 0.7], [23.7, 0.45], [24.5, 0.22], [26.2, 0.25], [26.42, 0.9], [26.55, 0.52]],
+    head: [[0, 0.05], [5.5, 0.05], [6.4, -0.08], [7.2, 0.0], [7.5, -0.12], [8.5, 0.02], [9.25, 0.14], [9.6, 0.2], [10.0, 0.08], [10.45, 0.18], [10.9, 0.05], [11.3, 0.06], [12.2, -0.04], [12.7, -0.02], [13.6, 0.02], [14.6, 0.14], [16.9, 0.13], [17.4, 0.2], [18.6, 0.12], [19.6, 0.0], [20.1, 0.1], [20.9, 0.18], [22.8, 0.16], [23.2, -0.2], [23.8, -0.38], [24.6, -0.42], [25.2, 0.25], [25.75, 0.22], [25.95, 0.05], [26.4, 0.2], [26.6, 0.0]],
+    mouth: [[0, 0.5], [22.95, 0.4], [23.05, -1], [24.6, -1], [24.7, 0.0], [25.8, 0.0], [26.1, 0.4]],
+    brow: [[0, 0], [20.9, 0], [21.3, 1], [22.8, 1], [23.1, 1.5], [24.8, 0.5], [25.2, 0.8], [26.2, -0.5], [26.8, 0]],
+    lookY: [[0, 0], [23.2, -0.6], [24.9, -0.8], [25.2, 0.8], [25.8, 0.5], [26.0, 0]],
+    lookX: [[0, 0], [11.2, 0.6], [12.3, 0.6], [12.6, 0]],
+    squash: [[0, 1], [9.5, 1], [9.62, 0.97], [9.8, 1]],
+  };
+  const poohTracks2 = {
+    // snag, bump, thinking, walk and the clearing
+    lean: [[33.3, 0.12], [34.0, -0.04], [34.25, 0.25], [34.45, 0.02], [34.7, -0.12], [34.95, -0.16], [35.1, 0.06], [35.25, -0.14], [35.35, 0.05], [35.8, 0.02], [38.7, 0.05], [38.95, 0.25], [39.15, 0.3], [39.3, 0.04], [42.6, 0.04], [43.2, 0.08], [44.0, 0]],
+    armN: [[33.3, 0.62], [33.9, 0.6], [34.1, 1.05], [34.3, 1.05], [34.55, 2.05, ease.outQuad], [34.95, 2.35], [35.15, 1.7], [35.35, 0.9], [35.9, 0.9], [36.4, 2.45], [38.6, 2.45], [38.9, 0.9], [39.1, 1.1], [39.3, 0.62], [42.6, 0.62], [43.3, 0.6]],
+    armNCurl: [[33.3, 0.9], [33.9, 0.9], [34.1, 0.3], [34.55, -0.15], [34.95, -0.2], [35.35, 0.4], [36.4, 1.55], [38.6, 1.55], [38.9, 0.4], [39.3, 0.9]],
+    armF: [[33.3, 0.52], [33.9, 0.5], [34.1, 0.9], [34.3, 0.9], [34.55, 0.6], [34.95, 0.9], [35.15, 1.4], [35.35, 0.7], [35.9, 0.55], [38.8, 0.55], [39.1, 0.95], [39.3, 0.52]],
+    head: [[33.3, 0.0], [33.9, -0.25], [34.2, 0.12], [34.5, -0.42], [34.95, -0.5], [35.3, -0.1], [35.5, 0.15], [36.0, -0.26], [37.2, -0.3], [38.2, -0.22], [38.8, 0.05], [39.3, 0.0], [42.6, -0.05], [43.1, 0.1], [43.4, 0.12]],
+    mouth: [[33.3, 0.3], [34.9, 0.3], [35.0, -1], [35.5, -1], [35.7, 0.1], [37.6, 0.1], [38.1, 0.6], [42.9, 0.5], [43.5, 0.9]],
+    brow: [[33.3, 0], [34.9, 0.5], [35.2, 1.5], [35.6, 0.8], [36.3, 1.2], [38.0, 0.9], [38.5, 0], [42.6, 0], [43.0, -0.4]],
+    lookY: [[33.3, 0], [34.3, -0.8], [35.0, -1], [35.4, 0], [36.2, -0.7], [38.5, -0.6], [38.8, 0]],
+    lookX: [[33.3, 0], [36.2, 0.6], [38.6, 0.6], [38.8, 0]],
+    squash: [[33.3, 1], [35.3, 1], [35.36, 0.84], [35.55, 1.03], [35.75, 1]],
+  };
+  const poohTracks3 = {
+    // sitting in the clearing
+    lean: [[45, 0.02], [45.6, 0.02], [45.9, 0.14], [48.3, 0.12], [48.6, 0.18], [48.9, 0.06], [49.2, 0.2], [49.5, 0.2], [49.8, 0.0], [50.4, -0.03], [51.4, -0.02], [52.6, 0.04], [60, 0.04]],
+    armN: [[45, 0.5], [45.6, 0.55], [45.95, 1.15], [48.3, 1.15], [48.6, 1.05], [48.9, 0.95], [49.1, 0.6], [49.35, 0.95], [49.55, 0.9], [49.9, 2.3], [50.3, 2.3], [50.7, 0.55], [60, 0.55]],
+    armNCurl: [[45, 0.8], [45.6, 0.8], [45.95, 0.6], [48.9, 0.6], [49.35, 0.2], [49.6, 0.5], [49.9, 1.6], [50.3, 1.6], [50.7, 0.9]],
+    armF: [[45, 0.4], [45.6, 0.45], [45.95, 1.05], [48.3, 1.05], [48.9, 0.8], [49.1, 0.4], [60, 0.4]],
+    head: [[45, 0.14], [45.6, 0.16], [46.0, 0.05], [46.8, 0.14], [47.6, 0.12], [48.3, 0.02], [48.9, 0.14], [49.9, -0.06], [50.4, -0.04], [51.3, 0.02], [52.0, 0.22], [53.4, 0.24], [54.6, -0.08], [60, -0.1]],
+    mouth: [[45, 0.5], [47.8, 0.5], [48.2, 1], [49.8, 0.8], [50.4, 1], [60, 1]],
+    eye: [[45, 1], [50.2, 1]],
+    brow: [[45, 0], [60, 0]],
+    lookY: [[45, 0.4], [46, 0], [46.7, 0.5], [48.9, 0.3], [49.6, 0], [52.0, 0.8], [53.4, 0.8], [54.6, -0.2], [60, -0.2]],
+    lookX: [[45, 0.3], [60, 0.3]],
+    squash: [[45, 1], [60, 1]],
+  };
+
+  function tracksAt(tr, t) {
+    const o = {};
+    for (const k in tr) o[k] = track(tr[k], t);
+    return o;
+  }
+
+  function pooh(t) {
+    const s = { x: poohX(t), z: 64, facing: 1, pose: {}, hold: null };
+    const P = s.pose;
+    Object.assign(P, tracksAt(t < 33.3 ? poohTracks : t < T.cut2 ? poohTracks2 : poohTracks3, t));
+    P.t = t;
+    P.blink = blinkAt(t, 1);
+    P.shade = [-8, -7];
+    // idle breathing
+    P.bob = Math.sin(t * 2.1) * 1.2;
+    // happy eyes
+    const happy = (a, b) => t > a && t < b;
+    if (happy(13.05, 13.75) || happy(17.55, 18.45) || happy(43.4, 44.3) || happy(48.3, 48.9) || happy(50.2, 51.0) || happy(53.2, 55.0) || t > 56.4) P.eye = 2;
+    if (t < 7.3) s.hold = 'bundle';
+    else if (t >= T.potPick && t < T.potPlace) s.hold = 'pot';
+    else if (t >= 26.42 && t < 34.05) s.hold = 'pot';
+    else if (t >= 39.12 && t < 43.0) s.hold = 'pot';
+
+    // walking / running cycles
+    if (t >= 9.8 && t < 10.12) Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 205) / 120, 0.7, 0), 1, s.hold));
+    if (t >= RUN0 && t < RUN1 + 0.3) {
+      const amp = seg(t, RUN0, RUN0 + 0.35) * (1 - seg(t, 33.35, 34.05));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 222) / POOH_STRIDE + 0.1, amp, 0.85), amp, s.hold));
+      s.z = lerp(64, 40, seg(t, RUN0, 28));
+    }
+    if (t >= RUN1) s.z = 40;
+    if (t >= T.walk && t < T.cut2) {
+      const amp = seg(t, T.walk, T.walk + 0.3) * (1 - seg(t, 42.2, 42.75));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - poohX(T.walk)) / 115, amp, 0.05), amp, s.hold));
+      s.z = lerp(40, 58, seg(t, T.walk, 42.7));
+    }
+    // tiptoe reach for the snagged cloth
+    if (t > 34.35 && t < 35.0) {
+      const k = seg(t, 34.35, 34.6) * (1 - seg(t, 34.9, 35.0));
+      P.legNLift = 7 * k; P.legFLift = 7 * k; P.bob = (P.bob || 0) - 9 * k;
+    }
+    // bump! sits down hard, then gets up again
+    if (t >= 35.25 && t < T.walk) {
+      P.sit = seg(t, 35.25, 35.38, ease.inQuad) * (1 - seg(t, 38.75, 39.1));
+      P.legN = 0.1 * wobble(t, 35.38, 2, 5, 1);
+    }
+    if (t >= T.cut2) {
+      s.x = 4060;
+      s.z = 64;
+      P.sit = 1;
+      P.bob = Math.sin(t * 1.9) * 0.9 + (t > 50.3 && t < 50.9 ? -3 * Math.sin((t - 50.3) / 0.6 * Math.PI) : 0);
+      P.legN = 0.05; P.legF = 0.12;
+    }
+    P.earWind = clamp((wind(t) - 0.25) * 1.4, 0, 1);
+    return s;
+  }
+
+  function blendCycle(P, C, amp, hold) {
+    const o = {};
+    for (const k of ['legN', 'legF', 'legNLift', 'legFLift', 'bob']) o[k] = C[k];
+    o.lean = (P.lean || 0) + C.lean;
+    o.head = (P.head || 0) + C.head;
+    if (!hold) {
+      o.armN = lerp(P.armN, C.armN, amp);
+      o.armF = lerp(P.armF, C.armF, amp);
+    } else {
+      o.armN = P.armN + (C.armN - 0.25) * 0.15;
+      o.armF = P.armF + (C.armF - 0.2) * 0.15;
+    }
+    return o;
+  }
+
+  /* ================================================================ Piglet */
+
+  function pigletX(t) {
+    if (t < T.pigletOut) return 578;
+    if (t < T.pigletStop) return lerp(578, 470, seg(t, T.pigletOut, T.pigletStop, ease.inOutSine));
+    if (t < 26.8) return 470;
+    if (t < 34.0) {
+      const a = 26.8, b = 27.3, c = 33.35, d = 34.0, v = 462;
+      if (t < b) return 470 + v * 0.5 * ((t - a) * (t - a)) / (b - a);
+      const xb = 470 + v * 0.5 * (b - a);
+      if (t < c) return xb + v * (t - b);
+      const xc = xb + v * (c - b);
+      const u = (t - c) / (d - c);
+      return xc + v * (d - c) * (u - 0.5 * u * u);
+    }
+    const x34 = pigletX(33.9999);
+    if (t < T.walk + 0.15) return x34 + lerp(0, -40, seg(t, 35.6, 36.3));
+    if (t < T.cut2) return x34 - 40 + 185 * (t - T.walk - 0.15) * (1 - 0.25 * seg(t, 42.2, 42.8));
+    return lerp(4225, 4170, seg(t, T.lean, T.lean + 0.9, ease.inOutSine));
+  }
+
+  const pigTracks = {
+    head: [[12.3, 0.1], [12.8, -0.05], [13.1, 0.08], [13.35, -0.02], [14.3, -0.12], [14.7, -0.22], [16.8, -0.2], [17.3, -0.28], [18.1, -0.26], [18.6, -0.1], [19.6, 0.05], [20.2, -0.1], [20.9, 0.25], [22.8, 0.2], [23.2, 0.35], [23.7, 0.25], [24.0, -0.35], [24.8, -0.45], [25.2, 0.3], [25.75, 0.25], [25.95, -0.12], [26.3, -0.05], [26.6, 0]],
+    armN: [[12.3, 0.2], [14.3, 0.25], [14.6, 1.35, ease.outBack], [16.7, 1.3], [17.1, 0.3], [18.1, 0.35], [18.3, 1.2], [18.7, 0.3], [22.9, 0.3], [23.25, 2.4, ease.outQuad], [23.85, 2.3], [24.1, 0.35], [26.25, 0.35], [26.4, 2.1, ease.outBack], [26.7, 1.9], [26.85, 0.3]],
+    armNCurl: [[12.3, 0.2], [14.3, 0.2], [14.6, 1.6], [16.7, 1.6], [17.1, 0.2], [26.3, 0.2], [26.4, -0.2], [26.8, 0.2]],
+    armF: [[12.3, 0.15], [14.3, 0.2], [14.6, 1.25, ease.outBack], [16.7, 1.2], [17.1, 0.2], [18.1, 0.25], [18.3, 1.1], [18.7, 0.2], [22.9, 0.2], [23.25, 2.2, ease.outQuad], [23.85, 2.1], [24.1, 0.25]],
+    armFCurl: [[12.3, 0.2], [14.3, 0.2], [14.6, 1.6], [16.7, 1.6], [17.1, 0.2]],
+    earN: [[12.3, 0], [12.5, -0.4], [12.75, 0.25], [13.0, -0.1], [13.2, 0], [14.6, -0.15], [16.8, -0.12], [17.3, 0], [18.4, -0.3], [18.7, 0.2], [18.9, 0], [23.1, 0.9], [23.8, 0.7], [24.2, 0], [25.9, 0], [26.1, -0.3], [26.3, 0]],
+    earF: [[12.3, 0], [12.5, -0.3], [12.75, 0.2], [13.0, -0.05], [13.2, 0], [18.4, -0.25], [18.7, 0.2], [18.9, 0], [23.1, 0.9], [23.8, 0.7], [24.2, 0]],
+    mouth: [[12.3, 0.2], [14.6, -1], [16.0, -1], [16.3, 0.6], [18.0, 1], [22.9, 0.5], [23.05, -1], [24.8, -1], [25.0, -0.2], [26.2, 0.3]],
+    lookY: [[12.3, 0], [14.5, -0.6], [16.8, -0.6], [17.3, -0.8], [18.5, 0], [20.9, 0.8], [22.8, 0.8], [23.2, 0], [24.0, -0.8], [25.0, -0.9], [25.2, 0.8], [25.8, 0.4], [26.0, -0.4], [26.3, 0]],
+    squash: [[12.3, 1], [23.25, 1], [23.35, 0.8], [23.8, 0.82], [24.0, 1]],
+    lean: [[12.3, 0], [14.3, 0], [14.6, -0.06], [16.8, -0.05], [17.2, 0], [23.1, 0.12], [23.35, 0.3], [23.8, 0.28], [24.0, 0], [26.4, 0], [26.65, -0.1], [26.8, 0.05]],
+  };
+  const pigTracks2 = {
+    head: [[33.3, 0], [33.9, -0.3], [34.9, -0.4], [35.3, -0.1], [35.6, 0.05], [36.3, -0.2], [37.0, -0.22], [37.8, -0.12], [38.6, -0.35], [39.2, -0.05], [42.6, -0.08], [43.0, -0.28], [43.6, -0.22], [44.4, -0.1]],
+    armN: [[33.3, 0.3], [33.95, 0.35], [34.15, 2.2], [34.4, 1.2], [34.6, 2.3], [34.85, 1.3], [35.2, 0.35], [36.2, 0.35], [36.5, 1.2], [37.2, 1.15], [37.5, 0.3], [42.6, 0.3], [43.1, 0.9], [43.6, 0.3]],
+    armF: [[33.3, 0.25], [33.95, 0.3], [34.15, 2.0], [34.4, 1.1], [34.6, 2.1], [34.85, 1.2], [35.2, 0.25], [42.6, 0.25], [43.1, 0.8], [43.6, 0.25]],
+    armNCurl: [[33.3, 0.2], [36.3, 0.2], [36.5, 1.5], [37.2, 1.5], [37.5, 0.2]],
+    earN: [[33.3, 0.2], [34.3, -0.3], [34.6, 0.3], [34.9, -0.2], [35.2, 0], [35.4, -0.4], [35.7, 0.1], [36.0, 0], [42.9, 0], [43.1, -0.35], [43.4, 0.1], [43.6, 0]],
+    earF: [[33.3, 0.2], [34.3, -0.2], [34.6, 0.3], [34.9, -0.2], [35.2, 0], [42.9, 0], [43.1, -0.3], [43.4, 0.1], [43.6, 0]],
+    mouth: [[33.3, 0.3], [35.3, -1], [35.8, -0.6], [36.2, 0.2], [42.9, 0.4], [43.3, 1]],
+    lookY: [[33.3, 0], [33.9, -0.8], [35.2, -0.6], [35.6, 0.3], [36.3, -0.7], [37.5, -0.6], [38.6, -0.8], [39.2, 0], [43.0, -0.7], [43.8, -0.4]],
+    squash: [[33.3, 1]],
+    lean: [[33.3, 0.1], [34.0, 0], [36.4, 0.0], [36.6, 0.06], [37.3, 0.04], [37.6, 0], [42.9, 0], [43.2, 0.06], [43.6, 0]],
+  };
+  const pigTracks3 = {
+    head: [[45, -0.05], [45.7, 0.05], [46.3, 0.1], [46.8, 0.18], [47.4, -0.05], [47.8, -0.1], [48.3, -0.18], [48.9, -0.05], [49.6, 0.05], [50.4, -0.05], [51.3, -0.05], [52.2, 0.12], [53.2, 0.1], [54.6, -0.05], [60, -0.05]],
+    armN: [[45, 0.35], [46.5, 0.4], [46.8, 1.3], [47.15, 1.25], [47.4, 1.8], [47.8, 2.1], [48.3, 2.0], [48.7, 0.4], [60, 0.4]],
+    armNCurl: [[45, 0.3], [46.5, 0.3], [46.8, 0.1], [47.15, 0.1], [47.5, 1.5], [48.3, 1.5], [48.7, 0.3]],
+    armF: [[45, 0.3], [60, 0.3]],
+    earN: [[45, 0], [47.9, 0], [48.1, -0.45], [48.4, 0.15], [48.6, 0], [60, 0]],
+    earF: [[45, 0], [47.9, 0], [48.1, -0.4], [48.4, 0.12], [48.6, 0], [60, 0]],
+    mouth: [[45, 0.5], [47.8, 0.5], [48.0, 1], [60, 1]],
+    lookY: [[45, 0.4], [46, 0.3], [46.8, 0.6], [47.5, 0], [52.2, -0.3], [60, -0.3]],
+    lean: [[45, 0], [46.7, 0], [46.9, 0.14], [47.2, 0.12], [47.5, 0], [51.3, 0], [52.2, 0.2], [60, 0.2]],
+    squash: [[45, 1], [48.0, 1], [48.1, 0.92], [48.3, 1.03], [48.45, 1]],
+    blush: [[45, 0.5], [47.9, 0.5], [48.2, 1], [60, 1]],
+  };
+
+  function piglet(t) {
+    const s = { x: pigletX(t), z: 90, facing: -1, pose: {}, hidden: 0 };
+    const P = s.pose;
+    Object.assign(P, tracksAt(t < 33.3 ? pigTracks : t < T.cut2 ? pigTracks2 : pigTracks3, t));
+    P.t = t;
+    P.blink = blinkAt(t, 2);
+    P.shade = [8, -6]; // light from the left, but Piglet faces left — flip the offset
+    P.bob = Math.sin(t * 2.6 + 1) * 0.8;
+    if (t < T.pigletOut) {
+      s.z = 138;
+      // pops up from behind the long grass, with a springy overshoot
+      const k = seg(t, T.pigletPop, T.pigletPop + 0.32, ease.outBack);
+      s.rise = lerp(78, 0, clamp(k, 0, 1.2));
+      if (t < T.pigletPop) s.rise = 90;
+      P.bob -= 6 * wobble(t, T.pigletPop + 0.3, 2.5, 6, 1);
+    } else if (t < T.pigletStop + 0.1) {
+      s.z = lerp(138, 92, seg(t, T.pigletOut, T.pigletStop));
+      const amp = seg(t, T.pigletOut, T.pigletOut + 0.2) * (1 - seg(t, T.pigletStop - 0.2, T.pigletStop));
+      Object.assign(P, blendCycle(P, walkCycle((578 - pigletX(t)) / 60, amp, 0.2), amp, null));
+    }
+    // happy hop on "For us"
+    if (t > T.hop && t < T.hop + 0.6) {
+      const u = (t - T.hop) / 0.6;
+      P.bob -= Math.sin(u * Math.PI) * 26;
+      P.squash = u < 0.12 ? 0.9 : u > 0.9 ? 0.92 : 1.05;
+    }
+    // turns to watch the cloth fly off, turns back to Pooh, turns to run
+    if (t > 23.85 && t < 25.8) s.facing = 1;
+    if (t > 26.25) s.facing = 1;
+    if (t >= 26.8 && t < 34.3) {
+      const amp = seg(t, 26.8, 27.1) * (1 - seg(t, 33.4, 34.05));
+      Object.assign(P, blendCycle(P, walkCycle((pigletX(t) - 470) / 78, amp, 1), amp, null));
+      s.z = lerp(90, 76, seg(t, 26.8, 28));
+      // a leap for the dipping cloth
+      if (t > 30.7 && t < 31.35) {
+        const u = (t - 30.7) / 0.65;
+        P.bob -= Math.sin(u * Math.PI) * 95;
+        P.armN = lerp(P.armN, 2.6, Math.sin(u * Math.PI));
+        P.armF = lerp(P.armF, 2.4, Math.sin(u * Math.PI));
+        P.legN = 0.5 * Math.sin(u * Math.PI);
+        P.legF = -0.3 * Math.sin(u * Math.PI);
+        P.head = -0.35 * Math.sin(u * Math.PI);
+        P.earN = 0.7 * Math.sin(u * Math.PI);
+        P.earF = 0.6 * Math.sin(u * Math.PI);
+      }
+      if (t > 31.35 && t < 31.6) P.squash = 1 - 0.15 * Math.sin(((t - 31.35) / 0.25) * Math.PI);
+    }
+    if (t >= 34.0 && t < T.cut2) {
+      s.z = 76;
+      // two hopeful hops by the gorse
+      for (const h0 of [34.12, 34.55]) if (t > h0 && t < h0 + 0.36) P.bob -= Math.sin(((t - h0) / 0.36) * Math.PI) * 30;
+      // steps back and turns to Pooh while he sits and thinks
+      if (t > 35.55 && t < 38.9) s.facing = -1;
+      if (t > 35.6 && t < 36.3) Object.assign(P, blendCycle(P, walkCycle((t - 35.6) * 2.2, 0.6, 0), 0.6, null));
+    }
+    if (t >= T.walk + 0.15 && t < T.cut2) {
+      const amp = seg(t, T.walk + 0.15, T.walk + 0.45) * (1 - seg(t, 42.3, 42.85));
+      Object.assign(P, blendCycle(P, walkCycle((pigletX(t) - pigletX(T.walk + 0.15)) / 64, amp, 0.1), amp, null));
+      s.z = lerp(76, 96, seg(t, T.walk, 42.8));
+      if (t > 42.9) s.facing = -1;
+    }
+    if (t >= T.cut2) {
+      s.z = 56;
+      s.facing = -1;
+      P.sit = 1;
+      P.bob = Math.sin(t * 2.2) * 0.7;
+      if (t > T.lean && t < T.lean + 0.9) {
+        // shuffles closer
+        const u = (t - T.lean) / 0.9;
+        P.bob -= Math.abs(Math.sin(u * Math.PI * 3)) * 4;
+      }
+      P.legN = 0.1; P.legF = 0.2;
+    }
+    P.earWind = clamp((wind(t) - 0.2) * 1.6, 0, 1.2);
+    if (t > 22.8 && t < 24.2) {
+      // ears blown back by the gust
+      const k = seg(t, 22.8, 23.1) * (1 - seg(t, 23.9, 24.2));
+      P.earN = lerp(P.earN, -0.9, k);
+      P.earF = lerp(P.earF, -0.8, k);
+    }
+    const happy = (a, b) => t > a && t < b;
+    if (happy(18.2, 18.9) || happy(43.4, 44.2) || happy(48.1, 49.2) || t > 52.3) P.eye = 2;
+    return s;
+  }
+
+  /* ================================================================ the pot */
+
+  function pot(t, pS) {
+    if (t < T.potPick) return { x: 268, z: 22, tilt: 0 };
+    if (t < T.potPlace) return { held: true };
+    if (t < 26.42) {
+      let tilt = 0;
+      if (t > T.gust + 0.12) tilt = 0.16 * wobble(t, T.gust + 0.12, 2.4, 2.2, 1) + 0.05 * wobble(t, T.gust + 0.5, 3.2, 3, 1);
+      return { x: 312, z: 70, tilt, settle: t < T.potPlace + 0.25 ? seg(t, T.potPlace, T.potPlace + 0.25) : 1 };
+    }
+    if (t < 34.05) return { held: true };
+    if (t < 39.12) return { x: 3232, z: 30, tilt: 0 };
+    if (t < 43.0) return { held: true };
+    if (t < T.cut2) return { x: poohX(43) + 70, z: 40, tilt: 0 };
+    // the clearing: offered to Piglet, then set down in front
+    if (t < 45.7) return { x: 4142, z: 64, tilt: 0 };
+    if (t < 48.6) {
+      const k = seg(t, 45.7, 46.4, ease.inOutSine) * (1 - seg(t, 48.2, 48.6, ease.inOutSine));
+      return { x: lerp(4142, 4160, k), z: 64, y: 34 * k, tilt: 0.42 * k };
+    }
+    const k = seg(t, 48.6, 48.95, ease.inOutSine);
+    return { x: lerp(4142, 4142, k), z: lerp(64, 20, k), y: 10 * Math.sin(k * Math.PI), tilt: 0 };
+  }
+
+  /* ================================================================ bees */
+
+  function bees(t, potWorld) {
+    const out = [];
+    // two bees idle round the pot on the meadow, then are blown away by the gust
+    if (t > 10.6 && t < 24.5) {
+      for (let i = 0; i < 2; i++) {
+        const ph = t * (1.3 + i * 0.4) + i * 2;
+        let x = 312 + Math.cos(ph) * (55 + i * 20) + noise1(t * 1.3 + i * 9) * 15;
+        let y = -95 - Math.sin(ph * 1.6) * 30 + noise1(t * 1.7 + i) * 12 - i * 30;
+        const enter = seg(t, 10.6 + i * 1.2, 12 + i * 1.2);
+        x = lerp(-250 + i * 60, x, enter);
+        y = lerp(-420, y, enter);
+        let rot = 0;
+        if (t > 22.7) {
+          const k = t - 22.7;
+          x += k * k * 420 + k * 120;
+          y -= k * k * 120 - Math.sin(k * 9 + i) * 20;
+          rot = k * 14 * (i ? -1 : 1);
+        }
+        out.push({ x, y, z: 70, rot, seed: i });
+      }
+    }
+    // the bees come back — with friends — and follow the honey
+    if (t > 29.4 && t < 45) {
+      for (let i = 0; i < 5; i++) {
+        const lag = 0.5 + i * 0.28;
+        const tt = t - lag;
+        let x, y;
+        if (t < 34.2) {
+          x = poohX(tt) + 40 + noise1(t * 2 + i * 5) * 30;
+          y = -170 - i * 18 + noise1(t * 2.4 + i * 3) * 30 + Math.sin(t * 8 + i) * 6;
+        } else if (t < 39.1) {
+          x = 3232 + Math.cos(t * (1.8 + i * 0.3) + i) * (40 + i * 10);
+          y = -110 - Math.sin(t * (2.3 + i * 0.2) + i) * 25 - i * 12;
+        } else {
+          x = poohX(tt) + 40 + noise1(t * 2 + i * 5) * 30;
+          y = -170 - i * 16 + noise1(t * 2.4 + i * 3) * 26;
+        }
+        const enter = seg(t, 29.4 + i * 0.15, 30.3 + i * 0.15);
+        x = lerp(x - 900, x, enter);
+        out.push({ x, y, z: 40, rot: noise1(t * 3 + i) * 0.3, seed: i + 3 });
+      }
+    }
+    if (t >= 45) {
+      for (let i = 0; i < 4; i++) {
+        const cx = [4140, 4330, 3950, 4230][i], cy = [-120, -60, -70, -150][i];
+        const ph = t * (1.1 + i * 0.25) + i * 1.7;
+        const x = cx + Math.cos(ph) * (30 + i * 8) + noise1(t + i * 4) * 12;
+        const y = cy + Math.sin(ph * 1.5) * 18 + noise1(t * 1.3 + i) * 8;
+        out.push({ x, y, z: 60, rot: 0, seed: i + 9 });
+      }
+    }
+    return out;
+  }
+
+  /* ================================================================ leaves (screen space) */
+
+  const LEAVES = (() => {
+    const R = rng(77);
+    const L = [];
+    const add = (n, t0, t1, speed, fall, size) => {
+      for (let i = 0; i < n; i++) L.push({ t0: lerp(t0, t1, R()), y0: R() * 900 - 100, x0: -80 - R() * 300, speed: speed * (0.7 + R() * 0.6), fall: fall * (0.6 + R() * 0.8), size: size * (0.8 + R() * 0.7), spin: (R() - 0.5) * 8, flip: 2 + R() * 5, col: Math.floor(R() * 5), ph: R() * 10, life: 6 });
+    };
+    add(5, 5.5, 18, 520, 60, 1.7);
+    add(1, 19.4, 19.5, 700, 40, 1.8);
+    add(46, 19.6, 24.4, 1300, 70, 1.9);
+    add(18, 26.5, 39, 900, 60, 1.7);
+    const clearing = [];
+    for (let i = 0; i < 10; i++) clearing.push({ t0: 40 + i * 2.1 + R(), x0: 200 + R() * 1500, y0: -60, fall: 90 + R() * 50, size: 1.4 + R() * 0.7, spin: (R() - 0.5) * 3, flip: 1.5 + R() * 2, col: Math.floor(R() * 5), ph: R() * 10, sway: 60 + R() * 60 });
+    return { L, clearing };
+  })();
+
+  function drawLeaves(ctx, t, cam) {
+    for (const l of LEAVES.L) {
+      const age = t - l.t0;
+      if (age < 0 || age > l.life) continue;
+      const travel = (windInt(t) - windInt(l.t0)) * l.speed;
+      const x = l.x0 + travel;
+      const y = l.y0 + age * l.fall + Math.sin(age * 2.3 + l.ph) * 40;
+      if (x < -60 || x > W + 60) continue;
+      const flip = Math.cos(age * l.flip + l.ph);
+      drawLeaf(ctx, x, y, age * l.spin + l.ph, flip, l.size * 1.3, l.col, 0.95);
+    }
+    if (t > 40) {
+      for (const l of LEAVES.clearing) {
+        const age = t - l.t0;
+        if (age < 0 || age > 14) continue;
+        const x = l.x0 + Math.sin(age * 0.9 + l.ph) * l.sway + age * 12;
+        const y = l.y0 + age * l.fall;
+        if (y > H + 40) continue;
+        drawLeaf(ctx, x, y, Math.sin(age * 1.2 + l.ph) * 1.2 + l.ph, Math.cos(age * l.flip + l.ph), l.size * 1.2, l.col, 0.9);
+      }
+    }
+  }
+
+  /* ================================================================ scenery layout */
+
+  let A = null;
+
+  function layout(S) {
+    const R = rng(1234);
+    const L = { far: [], midFar: [], mid: [], ground: [], groundFront: [], fg: [] };
+    const tt = WP.world.terrainTop;
+    const pick = (arr) => arr[Math.floor(R() * arr.length)];
+    const flip = () => (R() < 0.5 ? 1 : -1);
+    // Elements are placed by the world x the camera will be looking at (X), converted
+    // to the layer's own coordinates (X * p), so each region of the Forest has the
+    // right backdrop behind it.
+    // far ridge: clumps of pines on the skyline
+    for (let X = -2000; X < 6500; X += 700 + R() * 1400) {
+      const x = X * 0.12;
+      L.far.push({ s: pick(S.farClump), x, y: tt(x, 3, -120, 34, 0.0022) + 6, sc: 0.55 + R() * 0.35, flip: flip() });
+    }
+    // middle distance: heath with small pines, gorse and heather
+    for (let X = -1500; X < 6000; X += 300 + R() * 520) {
+      const x = X * 0.28, y = tt(x, 7, -40, 22, 0.003) + 10, r = R();
+      if (r < 0.4) L.midFar.push({ s: pick(S.pinesFar), x, y, sc: 0.42 + R() * 0.22, flip: flip(), sway: 0.4 });
+      else if (r < 0.7) L.midFar.push({ s: pick(S.gorse), x, y: y + 4, sc: 0.45 + R() * 0.2, flip: 1 });
+      else L.midFar.push({ s: pick(S.heather), x, y: y + 4, sc: 0.6 + R() * 0.3, flip: 1 });
+    }
+    // mid layer
+    const midY = (x) => tt(x, 11, -12, 16, 0.004) + 14;
+    for (let X = -1200; X < 5600; X += 170 + R() * 260) {
+      const x = X * 0.55, y = midY(x), r = R();
+      const region = X < 900 ? 'meadow' : X < 1800 ? 'heath' : X < 3350 ? 'pines' : X < 3750 ? 'edge' : X < 4650 ? 'clearing' : 'beyond';
+      if (region === 'pines' && r < 0.7) L.mid.push({ s: pick(S.pines), x, y, sc: 0.75 + R() * 0.25, flip: flip(), sway: 1 });
+      else if (region === 'meadow' && r < 0.35) L.mid.push({ s: pick(S.birches), x, y, sc: 0.7 + R() * 0.2, flip: flip(), sway: 1 });
+      else if (region === 'heath' && r < 0.25) L.mid.push({ s: pick(S.pines), x, y, sc: 0.65 + R() * 0.2, flip: flip(), sway: 1 });
+      else if ((region === 'edge' || region === 'beyond') && r < 0.55) L.mid.push({ s: R() < 0.5 ? pick(S.birches) : pick(S.pines), x, y, sc: 0.75 + R() * 0.25, flip: flip(), sway: 1 });
+      else if (region === 'clearing' && r < 0.2) L.mid.push({ s: pick(S.birches), x, y, sc: 0.6 + R() * 0.15, flip: flip(), sway: 1 });
+      else if (r < 0.8) L.mid.push({ s: pick(S.gorse), x, y: y + 6, sc: 0.55 + R() * 0.3, flip: flip(), sway: 0.2 });
+      else L.mid.push({ s: pick(S.heather), x, y: y + 6, sc: 0.9 + R() * 0.4, flip: 1, sway: 0.2 });
+    }
+    L.mid.sort((a, b) => a.y - b.y);
+    // ground plane (p = 1)
+    const back = (x, z) => [x + z * 0.18, -z * 0.36];
+    L.ground.push({ s: S.house, x: -330, y: -40, sc: 1, flip: 1, z: 110 });
+    for (let x = -700; x < 5400; x += 60 + R() * 110) {
+      if (x > -520 && x < -150) continue;
+      if (x > 3280 && x < 3560) continue;
+      const z = 170 + R() * 180;
+      const [px, py] = back(x, z);
+      const r = R();
+      const inClearing = x > 3800 && x < 4600;
+      if (inClearing) {
+        if (r < 0.55) L.ground.push({ s: pick(S.flowers), x: px, y: py, sc: 0.8 + R() * 0.4, flip: 1, sway: 0.8, z });
+        else L.ground.push({ s: pick(S.grass), x: px, y: py, sc: 0.8 + R() * 0.4, flip: flip(), sway: 1, z });
+        continue;
+      }
+      if (x > 900 && x < 3300 && r < 0.3) L.ground.push({ s: pick(S.gorse), x: px, y: py, sc: 0.7 + R() * 0.3, flip: flip(), sway: 0.3, z });
+      else if (r < 0.5) L.ground.push({ s: pick(S.heather), x: px, y: py, sc: 1.1 + R() * 0.5, flip: 1, sway: 0.4, z });
+      else if (r < 0.82) L.ground.push({ s: pick(S.grass), x: px, y: py, sc: 0.9 + R() * 0.5, flip: flip(), sway: 1, z });
+      else L.ground.push({ s: pick(S.bracken), x: px, y: py, sc: 0.7 + R() * 0.3, flip: flip(), sway: 0.6, z });
+    }
+    // the gorse bush that catches the cloth
+    const [sx, sy] = back(CL.SNAG.x, 120);
+    L.ground.push({ s: S.snagGorse, x: sx, y: sy, sc: 1.0, flip: 1, sway: 0.15, z: 120 });
+    // two old trees that frame the clearing, with leaves hanging over it
+    L.ground.push({ s: S.bigTrunkL, x: 3640, y: -118, sc: 0.8, flip: 1, z: 330 });
+    L.ground.push({ s: S.bigTrunkR, x: 4660, y: -128, sc: 0.85, flip: 1, z: 360 });
+    L.ground.push({ s: S.canopy[0], x: 3760, y: -1060, sc: 1.1, flip: 1, z: 329, sway: 0.3 });
+    L.ground.push({ s: S.canopy[1], x: 4520, y: -1100, sc: 1.15, flip: -1, z: 359, sway: 0.3 });
+    L.ground.sort((a, b) => (b.z ?? 0) - (a.z ?? 0));
+    // things in front of the characters on the ground plane
+    const [gx, gy] = back(592, 118);
+    L.groundFront.push({ s: S.tallGrass, x: gx, y: gy, sc: 1.1, flip: 1, sway: 1, until: 26 });
+    for (const [x, z] of [[3930, -40], [4380, -30], [4480, -60]]) {
+      const [px, py] = back(x, z);
+      L.groundFront.push({ s: pick(S.flowers), x: px, y: py, sc: 0.9, flip: 1, sway: 0.8, from: 39 });
+    }
+    // foreground (p = 1.35): grass along the bottom and a few big trunks that sweep past in the chase
+    for (let X = -1200; X < 5400; X += 150 + R() * 200) {
+      const r = R();
+      L.fg.push({ s: r < 0.6 ? pick(S.grass) : pick(S.fgBracken), x: X * 1.35, y: 250 + R() * 50, sc: r < 0.6 ? 1.7 + R() * 0.5 : 0.9 + R() * 0.3, flip: flip(), sway: 1 });
+    }
+    for (const x of [2080, 3800]) L.fg.push({ s: S.fgTrunk, x, y: 330, sc: 1.0, flip: x % 2 ? 1 : -1 });
+    return L;
+  }
+
+  function drawLayer(ctx, items, xf, t, p, cullPad = 400) {
+    const w = wind(t);
+    for (const it of items) {
+      if (it.until && t > it.until) continue;
+      if (it.from && t < it.from) continue;
+      const sx = xf.ox + it.x * xf.z;
+      const approxW = (it.s.w * it.sc * xf.z) / 1.6 + cullPad;
+      if (sx < -approxW || sx > W + approxW) continue;
+      const sway = it.sway ? it.sway * (0.02 + w * 0.06) * Math.sin(t * (1.3 + (it.x % 7) * 0.1) + it.x * 0.01) + it.sway * w * 0.05 : 0;
+      WP.world.drawSprite(ctx, it.s, it.x, it.y, it.sc, it.flip, sway);
+    }
+  }
+
+  /* ================================================================ init */
+
+  let SCENE, ACT, SIL, SHADOW, PAPER, GRAIN, SKY, TITLE, PLATE_MASK, ENDPAGE, GROUND_PAT;
+
+  function makeSky() {
+    const c = makeCanvas(W, H);
+    const g = c.getContext('2d');
+    g.drawImage(PAPER, 0, 0);
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, rgba('#e9dcb9', 0.55));
+    gr.addColorStop(0.55, rgba(PAL.skyWarm, 0.28));
+    gr.addColorStop(1, rgba(PAL.paperLight, 0));
+    g.fillStyle = gr;
+    g.fillRect(0, 0, W, H);
+    // pale watercolour clouds
+    const R = rng(21);
+    for (let i = 0; i < 14; i++) {
+      const x = R() * W, y = 80 + R() * 330, r = 90 + R() * 160;
+      ink.bloom(g, x, y, r, i % 3 ? '#fbf6ea' : '#e8d6b0', 0.35, 0.45);
+    }
+    ink.bloom(g, 380, 150, 420, '#f6dca0', 0.35, 0.9);
+    return c;
+  }
+
+  function makeTitle() {
+    const c = makeCanvas(W, H);
+    const g = c.getContext('2d');
+    g.drawImage(PAPER, 0, 0);
+    // an ink frame, as on an old title page
+    g.strokeStyle = rgba(PAL.ink, 0.8);
+    g.lineWidth = 1.4;
+    g.strokeRect(150, 110, W - 300, H - 220);
+    g.lineWidth = 0.8;
+    g.strokeRect(162, 122, W - 324, H - 244);
+    return c;
+  }
+
+  function makePlateMask(w, h) {
+    const c = makeCanvas(w, h);
+    const g = c.getContext('2d');
+    const img = g.createImageData(w, h);
+    const n = WP.makeNoise2(5);
+    const feather = 34;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const dx = Math.min(x, w - 1 - x), dy = Math.min(y, h - 1 - y);
+        const d = Math.min(dx, dy) + (n(x / 30, y / 30) - 0.5) * 26 + (n(x / 4, y / 4) - 0.5) * 7;
+        const a = clamp(d / feather);
+        img.data[(y * w + x) * 4 + 3] = Math.round(smooth(a) * 255);
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return c;
+  }
+
+  /** Paint all the scenery (a few seconds); `progress(p)` is awaited between steps so a page can update. */
+  async function init(progress = async () => {}) {
+    SCENE = makeCanvas(W, H);
+    ACT = makeCanvas(W, H);
+    SIL = makeCanvas(W, H);
+    SHADOW = makeCanvas(W / 8 + 2, H / 8 + 2);
+    PAPER = ink.makePaper(W, H, 7);
+    await progress(0.08);
+    GRAIN = ink.makeGrain(W, H, 99);
+    SKY = makeSky();
+    TITLE = makeTitle();
+    PLATE_MASK = makePlateMask(640, 360);
+    await progress(0.16);
+    const S = await WP.world.build((p) => progress(0.16 + p * 0.74));
+    A = { S, L: layout(S) };
+    bakeBands();
+    await progress(1);
+  }
+
+  /* ================================================================ frame */
+
+  function groundXY(x, z, y = 0) {
+    return [x + z * 0.18, -y - z * 0.36];
+  }
+
+  // Distant land is baked once into long strips (one per depth layer); the mid layer's
+  // trees still sway, so they are drawn live on top of their baked band.
+  const BAND_DEF = [
+    { p: 0.12, res: 1.0, items: 'far', bake: true, o: { seed: 3, base: -120, amp: 34, freq: 0.0022, fill: '#e3dcc0', wash: PAL.sage, washA: 0.35, lineA: 0.35, lineW: 1.2 } },
+    { p: 0.28, res: 1.15, items: 'midFar', bake: true, o: { seed: 7, base: -40, amp: 22, freq: 0.003, fill: '#dfd8b8', wash: PAL.mossLight, washA: 0.4, lineA: 0.45 } },
+    { p: 0.55, res: 1.3, items: 'mid', bake: false, o: { seed: 11, base: -12, amp: 16, freq: 0.004, fill: '#d9d2ad', wash: PAL.moss, washA: 0.32, lineA: 0.55 } },
+  ];
+  function bakeBands() {
+    for (const B of BAND_DEF) {
+      // the stretch of this layer the camera ever sees
+      let xa = 1e9, xb = -1e9, ya = 1e9, yb = -1e9;
+      for (let t = T.pageTurn[0]; t <= DUR; t += 0.05) {
+        const xf = layerXf(camera(t), B.p);
+        xa = Math.min(xa, -xf.ox / xf.z); xb = Math.max(xb, (W - xf.ox) / xf.z);
+        ya = Math.min(ya, -xf.oy / xf.z); yb = Math.max(yb, (H - xf.oy) / xf.z);
+      }
+      xa -= 60; xb += 60;
+      const top = Math.max(ya, -900), bottom = Math.min(yb, B.o.base + 700);
+      const c = makeCanvas((xb - xa) * B.res, (bottom - top) * B.res);
+      const g = c.getContext('2d');
+      g.scale(B.res, B.res);
+      g.translate(-xa, -top);
+      WP.world.drawBand(g, xa, xb, { ...B.o, bottom: bottom + 40 });
+      if (B.bake) {
+        for (const it of A.L[B.items]) WP.world.drawSprite(g, it.s, it.x, it.y, it.sc, it.flip, 0);
+      }
+      B.img = c; B.x0 = xa; B.y0 = top;
+    }
+  }
+
+  function drawBands(ctx, cam, t) {
+    for (const B of BAND_DEF) {
+      const xf = layerXf(cam, B.p);
+      ctx.save();
+      ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+      ctx.drawImage(B.img, B.x0, B.y0, B.img.width / B.res, B.img.height / B.res);
+      if (!B.bake) drawLayer(ctx, A.L[B.items], xf, t, B.p);
+      ctx.restore();
+    }
+    return layerXf(cam, 1);
+  }
+
+  function drawGround(ctx, xf, t) {
+    ctx.save();
+    ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+    const x0 = -xf.ox / xf.z, x1 = (W - xf.ox) / xf.z;
+    const band = WP.world.drawBand(ctx, x0, x1, { seed: 19, base: -128, amp: 10, freq: 0.003, bottom: 2400, fill: '#e6dcbc', wash: PAL.mossLight, washA: 0.5, lineA: 0.5, lineW: 1.4 });
+    if (!GROUND_PAT) GROUND_PAT = ctx.createPattern(A.S.groundTile, 'repeat');
+    const gp = WP.pathFrom(band.concat([[x1 + 30, 2400], [x0 - 30, 2400]]));
+    GROUND_PAT.setTransform(new DOMMatrix([0.8, 0, 0, 0.8, 0, -40]));
+    ctx.fillStyle = GROUND_PAT;
+    ctx.fill(gp);
+    // a sandy path along the heath
+    ctx.save();
+    const path = new Path2D();
+    path.moveTo(x0 - 50, -2);
+    for (let x = x0 - 50; x <= x1 + 50; x += 40) path.lineTo(x, -6 + Math.sin(x * 0.004) * 6);
+    for (let x = x1 + 50; x >= x0 - 50; x -= 40) path.lineTo(x, 34 + Math.sin(x * 0.003 + 1) * 8);
+    path.closePath();
+    ink.wash(ctx, path, PAL.honeyLight, { alpha: 0.28, edge: 0.2, edgeW: 14 });
+    ctx.restore();
+    drawLayer(ctx, A.L.ground, xf, t, 1);
+    ctx.restore();
+  }
+
+  function contactShadow(ctx, x, z, rx, a, lift = 0) {
+    const [px, py] = groundXY(x, z);
+    const k = 1 / (1 + lift / 80);
+    ctx.save();
+    ctx.translate(px, py + 2);
+    ctx.scale(1, 0.26);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * k);
+    g.addColorStop(0, `rgba(60,42,22,${a * k})`);
+    g.addColorStop(1, 'rgba(60,42,22,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, rx * k, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawActors(ctx, xf, t) {
+    const pS = pooh(t), gS = piglet(t), pt = pot(t, pS);
+    const G = CL.state(t);
+    const clothUp = G ? Math.max(...G.map((p) => p[1])) : 0;
+    ctx.save();
+    ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+    // ground contact shadows (on the scene, beneath the cut-outs)
+    contactShadow(ctx, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
+    if (!gS.rise || gS.rise < 40) contactShadow(ctx, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
+    if (!pt.held) contactShadow(ctx, pt.x, pt.z, 36, 0.3, pt.y || 0);
+    if (G && clothUp < 400) {
+      const cx = G[Math.floor(G.length / 2)];
+      contactShadow(ctx, cx[0], cx[2], 170, 0.22 * clamp(1 - clothUp / 400), cx[1]);
+    }
+    ctx.restore();
+
+    // everything that moves is a cut-out: draw to ACT, then lay it on with a paper edge
+    const a = ACT.getContext('2d');
+    a.setTransform(1, 0, 0, 1, 0, 0);
+    a.clearRect(0, 0, W, H);
+    a.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+    const items = [];
+    const clothFlat = G && clothUp < 6;
+    if (G && clothFlat) items.push({ z: 1e9, draw: () => CL.draw(a, G) });
+    const holdPot = (scale = 0.82) => (g) => {
+      g.save();
+      g.translate(40, -8);
+      g.scale(scale, scale);
+      drawPot(g, {});
+      g.restore();
+    };
+    const bundle = (g) => {
+      g.save();
+      g.translate(44, -34);
+      CL.drawBundle(g);
+      g.restore();
+    };
+    items.push({ z: pS.z, draw: () => {
+      const [px, py] = groundXY(pS.x, pS.z);
+      a.save();
+      a.translate(px, py);
+      const sc = 1 - pS.z * 0.0006;
+      a.scale(sc * pS.facing, sc);
+      const pose = Object.assign({}, pS.pose);
+      if (pS.hold === 'pot') { pose.hold = 'front'; pose.holdFn = holdPot(); }
+      if (pS.hold === 'bundle') { pose.hold = 'front'; pose.holdFn = bundle; }
+      drawPooh(a, pose);
+      a.restore();
+    } });
+    if (t >= T.pigletPop - 0.02) items.push({ z: gS.z, draw: () => {
+      const [px, py] = groundXY(gS.x, gS.z);
+      a.save();
+      if (gS.rise) {
+        a.beginPath();
+        a.rect(px - 400, py - 800, 800, 800 + 1);
+        a.clip();
+      }
+      a.translate(px, py + (gS.rise || 0));
+      const sc = 1 - gS.z * 0.0006;
+      a.scale(sc * gS.facing, sc);
+      drawPiglet(a, gS.pose);
+      a.restore();
+    } });
+    if (!pt.held) items.push({ z: pt.z + 0.5, draw: () => {
+      const [px, py] = groundXY(pt.x, pt.z, pt.y || 0);
+      a.save();
+      a.translate(px, py + (1 - (pt.settle ?? 1)) * -14);
+      const sc = 0.82 * (1 - pt.z * 0.0006);
+      a.scale(sc, sc);
+      drawPot(a, { tilt: pt.tilt });
+      a.restore();
+    } });
+    items.sort((i1, i2) => i2.z - i1.z);
+    for (const it of items) it.draw();
+    // the tall grass Piglet hides behind is part of the ground, in front of him
+    drawLayer(a, A.L.groundFront, xf, t, 1);
+    if (G && !clothFlat) CL.draw(a, G);
+    for (const b of bees(t)) {
+      const [bx, by] = groundXY(b.x, b.z, -b.y);
+      a.save();
+      a.translate(bx, by);
+      a.scale(1.25, 1.25);
+      drawBee(a, { t, seed: b.seed, rot: b.rot });
+      a.restore();
+    }
+    // paper margin + soft shadow, worked only inside the actors' bounds
+    const bb = actorBounds(xf, pS, gS, pt, G, t);
+    const s = SIL.getContext('2d');
+    s.setTransform(1, 0, 0, 1, 0, 0);
+    s.globalCompositeOperation = 'source-over';
+    s.clearRect(bb.x - 8, bb.y - 8, bb.w + 16, bb.h + 16);
+    const m = 3.2 * Math.sqrt(xf.z);
+    for (let i = 0; i < 8; i++) {
+      const an = (i / 8) * TAU;
+      s.drawImage(ACT, bb.x, bb.y, bb.w, bb.h, bb.x + Math.cos(an) * m, bb.y + Math.sin(an) * m, bb.w, bb.h);
+    }
+    s.globalCompositeOperation = 'source-in';
+    s.fillStyle = PAL.paperLight;
+    s.fillRect(bb.x - 8, bb.y - 8, bb.w + 16, bb.h + 16);
+    s.globalCompositeOperation = 'source-over';
+    // soft shadow: the silhouette shrunk to an eighth and stretched back (bilinear = blur)
+    const sh = SHADOW.getContext('2d');
+    const q = 8;
+    sh.setTransform(1, 0, 0, 1, 0, 0);
+    sh.globalCompositeOperation = 'source-over';
+    sh.clearRect(0, 0, SHADOW.width, SHADOW.height);
+    sh.drawImage(SIL, bb.x - 8, bb.y - 8, bb.w + 16, bb.h + 16, (bb.x - 8) / q, (bb.y - 8) / q, (bb.w + 16) / q, (bb.h + 16) / q);
+    sh.globalCompositeOperation = 'source-in';
+    sh.fillStyle = 'rgb(60,40,20)';
+    sh.fillRect(0, 0, SHADOW.width, SHADOW.height);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 0.2;
+    const ox = 4 * xf.z, oy = 6 * xf.z;
+    ctx.drawImage(SHADOW, (bb.x - 24) / q, (bb.y - 24) / q, (bb.w + 48) / q, (bb.h + 48) / q, bb.x - 24 + ox, bb.y - 24 + oy, bb.w + 48, bb.h + 48);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(SIL, bb.x - 8, bb.y - 8, bb.w + 16, bb.h + 16, bb.x - 8, bb.y - 8, bb.w + 16, bb.h + 16);
+    ctx.drawImage(ACT, bb.x, bb.y, bb.w, bb.h, bb.x, bb.y, bb.w, bb.h);
+    ctx.restore();
+    return { pS, gS };
+  }
+
+  function actorBounds(xf, pS, gS, pt, G, t) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    const add = (wx0, wy0, wx1, wy1) => {
+      x0 = Math.min(x0, xf.ox + wx0 * xf.z); y0 = Math.min(y0, xf.oy + wy0 * xf.z);
+      x1 = Math.max(x1, xf.ox + wx1 * xf.z); y1 = Math.max(y1, xf.oy + wy1 * xf.z);
+    };
+    let [px, py] = groundXY(pS.x, pS.z);
+    add(px - 190, py - 420, px + 190, py + 40);
+    [px, py] = groundXY(gS.x, gS.z);
+    add(px - 120, py - 300, px + 120, py + 40);
+    if (!pt.held) { [px, py] = groundXY(pt.x, pt.z, pt.y || 0); add(px - 70, py - 110, px + 70, py + 20); }
+    if (G) for (const v of G) { const [cx, cy] = CL.proj(v[0], v[1], v[2]); add(cx - 12, cy - 12, cx + 12, cy + 12); }
+    for (const b of bees(t)) { const [bx, by] = groundXY(b.x, b.z, -b.y); add(bx - 20, by - 20, bx + 20, by + 20); }
+    for (const it of A.L.groundFront) {
+      if ((it.until && t > it.until) || (it.from && t < it.from)) continue;
+      add(it.x - it.s.w * it.sc * 0.6, it.y - it.s.h * it.sc * 1.1, it.x + it.s.w * it.sc * 0.6, it.y + 30);
+    }
+    const pad = 24;
+    x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
+    x1 = Math.min(W, Math.ceil(x1 + pad)); y1 = Math.min(H, Math.ceil(y1 + pad));
+    return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+  }
+
+  function drawForeground(ctx, cam, t) {
+    const xf = layerXf(cam, 1.35);
+    ctx.save();
+    ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+    drawLayer(ctx, A.L.fg, xf, t, 1.35, 600);
+    ctx.restore();
+    // live swaying grass blades along the very bottom edge
+    const w = wind(t);
+    ctx.save();
+    ctx.lineCap = 'round';
+    const R = rng(55);
+    const off = ((cam.x * 1.5) % 2400 + 2400) % 2400;
+    for (let i = 0; i < 90; i++) {
+      const bx = ((i * 41.3 + R() * 30 - off) % 2400 + 2400) % 2400 - 240;
+      const h = 60 + R() * 110;
+      const bend = (0.15 + w * 0.9) * h * 0.5 + Math.sin(t * (2 + R() * 2) + i) * (6 + w * 18);
+      ctx.strokeStyle = rgba(i % 3 ? PAL.mossDeep : PAL.ink, 0.75);
+      ctx.lineWidth = 2.2 + R() * 1.6;
+      ctx.beginPath();
+      ctx.moveTo(bx, H + 10);
+      ctx.quadraticCurveTo(bx + bend * 0.2, H - h * 0.55, bx + bend, H - h);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* dappled light: warm patches drifting over the scene (screen space) */
+  function dapple(ctx, t, cam) {
+    const strength = 0.55 + 0.35 * seg(t, 27, 29) * (1 - seg(t, 37, 40)) + 0.2 * seg(t, 40, 44);
+    ctx.save();
+    ctx.globalCompositeOperation = 'soft-light';
+    const R = rng(909);
+    for (let i = 0; i < 9; i++) {
+      const x = ((R() * W * 1.6 - cam.x * 0.9 * (0.6 + R() * 0.4) + noise1(t * 0.15 + i) * 120) % (W * 1.6) + W * 1.6) % (W * 1.6) - W * 0.3;
+      const y = 250 + R() * 700 + noise1(t * 0.2 + i * 3) * 60;
+      const r = 160 + R() * 260;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      const warm = i % 3 !== 0;
+      g.addColorStop(0, warm ? `rgba(255,236,190,${0.55 * strength})` : `rgba(70,60,30,${0.35 * strength})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    ctx.restore();
+  }
+
+  function sunRays(ctx, t, amt) {
+    if (amt <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 6; i++) {
+      const x0 = 250 + i * 190 + Math.sin(t * 0.3 + i) * 30;
+      const w = 70 + (i % 3) * 50;
+      const g = ctx.createLinearGradient(x0, 0, x0 + 500, H);
+      g.addColorStop(0, `rgba(255,226,160,${0.16 * amt})`);
+      g.addColorStop(1, 'rgba(255,226,160,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x0, -20);
+      ctx.lineTo(x0 + w, -20);
+      ctx.lineTo(x0 + w + 560, H + 20);
+      ctx.lineTo(x0 + 560 - w * 0.4, H + 20);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawScene(ctx, t) {
+    const cam = camera(t);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    // sky moves hardly at all
+    const P = PROF, now = () => (PROF.flush && ctx.getImageData(0, 0, 1, 1), performance.now());
+    let q = now();
+    ctx.drawImage(SKY, -((cam.x * 0.02) % 40) - 20, -cam.y * 0.03 - 16, W + 40, H + 30);
+    const gxf = drawBands(ctx, cam, t);
+    P.bands = now() - q; q = now();
+    drawGround(ctx, gxf, t);
+    P.ground = now() - q; q = now();
+    drawActors(ctx, gxf, t);
+    P.actors = now() - q; q = now();
+    drawForeground(ctx, cam, t);
+    P.fg = now() - q; q = now();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    drawLeaves(ctx, t, cam);
+    dapple(ctx, t, cam);
+    P.fx = now() - q;
+    sunRays(ctx, t, seg(t, 39.5, 42) * (t < T.cut2 ? 1 : 0.55) + seg(t, 52, 56) * 0.45);
+    // time of day: warmer and softer towards the end
+    const warm = 0.1 + 0.3 * seg(t, 44, 58);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = `rgba(255,222,172,${warm})`;
+    ctx.fillRect(0, 0, W, H);
+    // low afternoon sun glowing in from the upper left of the clearing
+    const glow = 0.18 * seg(t, 39.5, 43) + 0.22 * seg(t, 50, 57);
+    if (glow > 0) {
+      ctx.globalCompositeOperation = 'screen';
+      const g = ctx.createRadialGradient(W * 0.28, -H * 0.1, 0, W * 0.28, -H * 0.1, H * 1.25);
+      g.addColorStop(0, `rgba(255,214,150,${glow})`);
+      g.addColorStop(0.5, `rgba(255,214,150,${glow * 0.35})`);
+      g.addColorStop(1, 'rgba(255,214,150,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* ================================================================ title and end pages */
+
+  function inkText(ctx, text, x, y, font, reveal, color = PAL.ink, align = 'center') {
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'alphabetic';
+    const m = ctx.measureText(text);
+    const w = m.width;
+    const left = align === 'center' ? x - w / 2 : x;
+    // soft left-to-right reveal, as though the ink were just drying
+    const g = ctx.createLinearGradient(left - 40, 0, left + w + 40, 0);
+    const r = clamp(reveal, 0, 1);
+    g.addColorStop(0, color);
+    g.addColorStop(clamp(r * 1.05), color);
+    g.addColorStop(clamp(r * 1.05 + 0.08), 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = r >= 1 ? color : g;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
+  function drawTitlePage(ctx, t, poster = false) {
+    ctx.drawImage(TITLE, 0, 0);
+    // three bees looping over a dotted flight path
+    ctx.save();
+    ctx.translate(960, 250);
+    ctx.strokeStyle = rgba(PAL.ink, 0.55);
+    ctx.setLineDash([2, 7]);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    for (let i = 0; i <= 60; i++) {
+      const u = i / 60;
+      const x = lerp(-230, 230, u), y = Math.sin(u * TAU * 1.5) * 26 - Math.sin(u * Math.PI) * 20;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    for (let i = 0; i < 3; i++) {
+      const u = ((t * 0.12 + i * 0.3) % 1);
+      const x = lerp(-230, 230, u), y = Math.sin(u * TAU * 1.5) * 26 - Math.sin(u * Math.PI) * 20;
+      ctx.save();
+      ctx.translate(x, y - 6);
+      ctx.scale(2.2, 2.2);
+      drawBee(ctx, { t, seed: i });
+      ctx.restore();
+    }
+    ctx.restore();
+    inkText(ctx, 'The Windy Picnic', 960, 470, '118px "IM Fell English", Georgia, serif', seg(t, 0.2, 1.6, ease.linear));
+    // ornament rule
+    const k = seg(t, 1.0, 2.0);
+    ctx.save();
+    ctx.globalAlpha = k;
+    ink.line(ctx, [[960 - 190 * k, 520], [960, 516], [960 + 190 * k, 520]], { w: 1.6, seed: 3, taper: [0.3, 0.3] });
+    ctx.fillStyle = PAL.ink;
+    ctx.beginPath();
+    ctx.ellipse(960, 518, 6, 4, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+    inkText(ctx, 'In which Pooh plans a picnic,', 960, 612, 'italic 50px "IM Fell English", Georgia, serif', seg(t, 1.1, 2.4, ease.linear), PAL.inkSoft);
+    inkText(ctx, 'and the wind comes too', 960, 676, 'italic 50px "IM Fell English", Georgia, serif', seg(t, 2.2, 3.4, ease.linear), PAL.inkSoft);
+    // a little honey pot vignette
+    if (poster) return;
+    ctx.save();
+    ctx.globalAlpha = seg(t, 1.8, 2.8);
+    ctx.translate(960, 850);
+    ctx.scale(1.25, 1.25);
+    drawPot(ctx, {});
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = seg(t, 2.2, 3.0);
+    drawLeaf(ctx, 1030, 790 + Math.sin(t * 1.5) * 4, 0.6 + Math.sin(t) * 0.1, 1, 1.8, 0);
+    ctx.restore();
+  }
+
+  /** Page turn: the title page folds away from the right, revealing the scene beneath. */
+  function drawPageTurn(ctx, t, pageCanvas) {
+    const u = seg(t, T.pageTurn[0], T.pageTurn[1], ease.inOutSine);
+    if (u >= 1) return;
+    // fold line: moves right → left, tilted
+    const fx = lerp(W + 60, -W * 0.55, u);
+    const tilt = 0.22;
+    const topX = fx + H * tilt * 0.5, botX = fx - H * tilt * 0.5;
+    ctx.save();
+    // remaining flat part of the page (left of the fold)
+    ctx.beginPath();
+    ctx.moveTo(-10, -10);
+    ctx.lineTo(topX, -10);
+    ctx.lineTo(botX, H + 10);
+    ctx.lineTo(-10, H + 10);
+    ctx.closePath();
+    ctx.save();
+    ctx.clip();
+    ctx.drawImage(pageCanvas, 0, 0);
+    // shading near the fold
+    const gs = ctx.createLinearGradient(fx - 160, 0, fx, 0);
+    gs.addColorStop(0, 'rgba(90,60,30,0)');
+    gs.addColorStop(1, 'rgba(90,60,30,0.18)');
+    ctx.fillStyle = gs;
+    ctx.fillRect(fx - 300, 0, 400, H);
+    ctx.restore();
+    // the lifted flap: mirror of the turned part, showing the plain back of the page
+    const flapW = (W + 60 - fx) * 0.55;
+    ctx.beginPath();
+    ctx.moveTo(topX, -10);
+    ctx.lineTo(topX - flapW - 30, -10);
+    ctx.quadraticCurveTo(fx - flapW - 70, H / 2, botX - flapW + 20, H + 10);
+    ctx.lineTo(botX, H + 10);
+    ctx.closePath();
+    ctx.save();
+    ctx.shadowColor = 'rgba(40,25,10,0.35)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetX = -18;
+    ctx.fillStyle = PAL.paperLight;
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.clip();
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(PAPER, 0, 0);
+    const gf = ctx.createLinearGradient(fx - flapW, 0, fx, 0);
+    gf.addColorStop(0, 'rgba(120,90,50,0.22)');
+    gf.addColorStop(0.7, 'rgba(255,250,235,0.1)');
+    gf.addColorStop(1, 'rgba(120,90,50,0.25)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = gf;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    // shadow the flap casts onto the revealed scene
+    const gsh = ctx.createLinearGradient(fx, 0, fx + 140, 0);
+    gsh.addColorStop(0, 'rgba(40,25,10,0.3)');
+    gsh.addColorStop(1, 'rgba(40,25,10,0)');
+    ctx.beginPath();
+    ctx.moveTo(topX, -10);
+    ctx.lineTo(topX + 200, -10);
+    ctx.lineTo(botX + 200, H + 10);
+    ctx.lineTo(botX, H + 10);
+    ctx.closePath();
+    ctx.fillStyle = gsh;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEndPage(ctx, t) {
+    const k = seg(t, T.plate[0], T.plate[1], ease.inOutCubic);
+    // page behind the plate
+    ctx.drawImage(PAPER, 0, 0);
+    const pw = lerp(W + 240, W * 0.64, k), ph = lerp(H + 136, H * 0.64, k);
+    const cx = W / 2, cy = lerp(H / 2, 470, k);
+    // the scene, printed as a plate on the page with soft deckled edges
+    const plate = ACT.getContext('2d');
+    plate.setTransform(1, 0, 0, 1, 0, 0);
+    plate.globalCompositeOperation = 'source-over';
+    plate.clearRect(0, 0, W, H);
+    plate.drawImage(SCENE, cx - pw / 2, cy - ph / 2, pw, ph);
+    plate.globalCompositeOperation = 'destination-in';
+    plate.drawImage(PLATE_MASK, cx - pw / 2, cy - ph / 2, pw, ph);
+    plate.globalCompositeOperation = 'source-over';
+    ctx.drawImage(ACT, 0, 0);
+    inkText(ctx, 'The End', 960, 918, 'italic 76px "IM Fell English", Georgia, serif', seg(t, 57.5, 58.6, ease.linear));
+    ctx.save();
+    ctx.globalAlpha = seg(t, 58.4, 59.3) * 0.85;
+    inkText(ctx, 'after Winnie-the-Pooh by A. A. Milne, with decorations by E. H. Shepard (1926)', 960, 978, '26px "IM Fell English", Georgia, serif', 1, PAL.inkSoft);
+    ctx.restore();
+  }
+
+  /* ================================================================ subtitles */
+
+  function drawSubtitles(ctx, t, cues) {
+    if (!cues) return;
+    const cue = cues.find((c) => t >= c.start && t <= c.end);
+    if (!cue) return;
+    const a = Math.min(seg(t, cue.start, cue.start + 0.18), 1 - seg(t, cue.end - 0.2, cue.end));
+    const lines = cue.text.split('\n');
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = '500 46px "EB Garamond", Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const lh = 56;
+    const widths = lines.map((l) => ctx.measureText(l).width);
+    const bw = Math.max(...widths) + 64, bh = lines.length * lh + 26;
+    const bx = W / 2 - bw / 2, by = H - 66 - bh;
+    // a slip of paper pasted on, like a caption in a scrapbook
+    ctx.save();
+    ctx.shadowColor = 'rgba(40,25,10,0.25)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = 'rgba(248,241,224,0.9)';
+    ctx.beginPath();
+    const R = rng(Math.floor(cue.start * 10));
+    ctx.moveTo(bx, by + R() * 4);
+    ctx.lineTo(bx + bw, by + R() * 4);
+    ctx.lineTo(bx + bw - R() * 4, by + bh);
+    ctx.lineTo(bx + R() * 4, by + bh - R() * 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#2b2118';
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, by + 13 + lh / 2 + i * lh + 1));
+    ctx.restore();
+  }
+
+  /* ================================================================ compose */
+
+  function render(ctx, t, opts = {}) {
+    t = clamp(t, 0, DUR);
+    const sctx = SCENE.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    if (t < T.pageTurn[0]) {
+      drawTitlePage(ctx, t, opts.poster);
+    } else {
+      drawScene(sctx, t);
+      if (t < T.plate[0]) ctx.drawImage(SCENE, 0, 0);
+      else drawEndPage(ctx, t);
+      if (t < T.pageTurn[1]) {
+        const pg = makeTitleSnapshot(t);
+        drawPageTurn(ctx, t, pg);
+      }
+    }
+    // one sheet of paper under everything
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(GRAIN, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    // fade in from the blank page at the very start
+    if (t < 0.25) {
+      ctx.fillStyle = `rgba(242,232,210,${1 - t / 0.25})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (opts.subtitles !== false) drawSubtitles(ctx, t, opts.cues);
+  }
+
+  const PROF = {};
+  let SNAP = null;
+  function makeTitleSnapshot(t) {
+    if (!SNAP) SNAP = makeCanvas(W, H);
+    const g = SNAP.getContext('2d');
+    drawTitlePage(g, t);
+    return SNAP;
+  }
+
+  /* ================================================================ sound cues (for the soundtrack builder) */
+
+  function soundEvents() {
+    const ev = [];
+    const steps = (who, fnPhase, t0, t1, stride) => {
+      let prev = null;
+      for (let t = t0; t < t1; t += 0.002) {
+        const ph = fnPhase(t);
+        if (prev !== null) {
+          for (const c of [0.25, 0.75]) {
+            const a = prev - Math.floor(prev), b = ph - Math.floor(ph);
+            if ((a < c && b >= c) || (Math.floor(ph) > Math.floor(prev) && c < b)) {
+              if (Math.floor(ph) > Math.floor(prev) && !(a < c) && !(c < b)) continue;
+              ev.push({ t: +t.toFixed(3), type: 'step', who });
+            }
+          }
+        }
+        prev = ph;
+      }
+    };
+    steps('pooh', (t) => (poohX(t) - 222) / POOH_STRIDE + 0.1, RUN0 + 0.15, 33.95, POOH_STRIDE);
+    steps('piglet', (t) => (pigletX(t) - 470) / 78, 26.95, 33.95, 78);
+    steps('piglet', (t) => (578 - pigletX(t)) / 60, T.pigletOut + 0.1, T.pigletStop, 60);
+    steps('pooh', (t) => (poohX(t) - poohX(T.walk)) / 115, T.walk + 0.2, 42.6, 115);
+    steps('piglet', (t) => (pigletX(t) - pigletX(T.walk + 0.15)) / 64, T.walk + 0.3, 42.7, 64);
+    ev.sort((a, b) => a.t - b.t);
+    // wind strength, bee positions on screen and the cloth's screen position (20 Hz) for panning
+    const wind100 = [], beesOnScreen = [], clothOnScreen = [];
+    for (let i = 0; i <= DUR * 100; i++) wind100.push(+wind(i / 100).toFixed(4));
+    for (let i = 0; i <= DUR * 20; i++) {
+      const t = i / 20;
+      const xf = layerXf(camera(t), 1);
+      beesOnScreen.push(bees(t).map((b) => {
+        const [bx, by] = groundXY(b.x, b.z, -b.y);
+        return [+((xf.ox + bx * xf.z) / W).toFixed(3), +((xf.oy + by * xf.z) / H).toFixed(3), +xf.z.toFixed(3)];
+      }));
+      const G = t >= 7.35 ? CL.state(t) : null;
+      if (G) {
+        const c = G[Math.floor(G.length / 2)];
+        const [cx, cy] = CL.proj(c[0], c[1], c[2]);
+        clothOnScreen.push([+((xf.ox + cx * xf.z) / W).toFixed(3), +((xf.oy + cy * xf.z) / H).toFixed(3), +c[1].toFixed(1)]);
+      } else clothOnScreen.push(null);
+    }
+    return { T, events: ev, wind100, beesOnScreen, clothOnScreen };
+  }
+
+  WP.film = { PROF, init, render, camera, wind, pooh, piglet, pot, soundEvents, T, DUR, W, H };
+})();

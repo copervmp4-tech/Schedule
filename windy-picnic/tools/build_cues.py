@@ -1,0 +1,128 @@
+"""Place narration clips on the film timeline and derive subtitle cues.
+
+Reads  assets/audio/narration/L*.wav + narration_tokens.json
+Writes build/narration_placed.wav        (48 kHz mono, loudness-matched)
+       js/cues.js                         (timeline data shared with the animation)
+       assets/subtitles.vtt / .srt        (English subtitles)
+"""
+import json, os
+import numpy as np
+import soundfile as sf
+from scipy.signal import resample_poly
+import pyloudnorm as pyln
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NAR = os.path.join(ROOT, "assets", "audio", "narration")
+SR = 48000
+FILM_LEN = 60.0
+
+# Where each clip starts on the film timeline (seconds). Clip audio has ~0.3 s of
+# lead-in silence baked in by the TTS model.
+PLACE = {
+    "L0": 0.35, "L1": 5.90, "L2": 14.40, "L3": 16.90, "L4": 19.80,
+    "L5": 27.20, "L6": 35.40, "L7": 43.05, "L8": 47.60, "L9": 51.60,
+}
+# Extra breath inserted after a token (line, token index of the comma, seconds).
+PAUSES = {"L1": [(",", "honey", 0.45)]}
+
+# Subtitle events: (line, first word, last word inclusive, text). L0 is shown as the
+# on-screen title card, so it is not duplicated as a subtitle.
+SUBS = [
+    ("L1", "One", "honey", "One breezy morning, Pooh laid out a picnic:\na cloth, a pot of honey,"),
+    ("L1", "and", "Piglet", "and a space just the size of a Piglet."),
+    ("L2", "For", "Piglet", "“For me?” asked Piglet."),
+    ("L3", "For", "Pooh", "“For us,” said Pooh."),
+    ("L4", "But", "too", "But the wind, it seemed,\nwanted to come too."),
+    ("L5", "So", "pines", "So off they went, over the heather\nand under the pines,"),
+    ("L5", "with", "case", "with the bees close behind,\njust in case."),
+    ("L6", "Perhaps", "nicer", "“Perhaps,” said Pooh,\n“it knows somewhere nicer.”"),
+    ("L7", "It", "did", "It did."),
+    ("L8", "It", "planned", "It wasn’t quite the picnic Pooh had planned."),
+    ("L9", "But", "afternoon", "But with Piglet beside him,\nit was a perfectly wonderful afternoon."),
+]
+
+
+def fade(x, n, inout):
+    n = min(n, len(x))
+    if n <= 0:
+        return x
+    r = np.linspace(0, 1, n)
+    x = x.copy()
+    if inout == "in":
+        x[:n] *= r
+    else:
+        x[-n:] *= r[::-1]
+    return x
+
+
+def main():
+    meta = json.load(open(os.path.join(NAR, "narration_tokens.json")))
+    meter = pyln.Meter(SR)
+    track = np.zeros(int(FILM_LEN * SR), dtype=np.float64)
+    words_out, lines_out = {}, {}
+    for key, start in PLACE.items():
+        a, sr = sf.read(os.path.join(NAR, f"{key}.wav"))
+        a = resample_poly(a, SR, sr)
+        toks = [[t, s, e] for t, s, e in meta[key]["tokens"]]
+        # insert pauses
+        for (tok, after_word, secs) in PAUSES.get(key, []):
+            for i, (t, s, e) in enumerate(toks):
+                if t == tok and i > 0 and toks[i - 1][0] == after_word:
+                    cut = int(e * SR)
+                    gap = np.zeros(int(secs * SR))
+                    a = np.concatenate([fade(a[:cut], 240, "out"), gap, fade(a[cut:], 240, "in")])
+                    for tt in toks[i + 1:]:
+                        tt[1] += secs
+                        tt[2] += secs
+                    break
+        # loudness-match each line to -20 LUFS (final gain is set in the mix)
+        loud = meter.integrated_loudness(np.pad(a, (0, max(0, SR // 2 - len(a)))))
+        a = a * 10 ** ((-20.0 - loud) / 20)
+        i0 = int(start * SR)
+        track[i0:i0 + len(a)] += a[: len(track) - i0]
+        words = [(t, round(start + s, 3), round(start + e, 3)) for t, s, e in toks if any(c.isalnum() for c in t)]
+        words_out[key] = words
+        lines_out[key] = {"start": start, "speechStart": words[0][1], "speechEnd": words[-1][2], "end": round(start + len(a) / SR, 3)}
+    os.makedirs(os.path.join(ROOT, "build"), exist_ok=True)
+    sf.write(os.path.join(ROOT, "build", "narration_placed.wav"), track.astype(np.float32), SR)
+
+    subs = []
+    for key, w0, w1, text in SUBS:
+        ws = words_out[key]
+        i0 = next(i for i, w in enumerate(ws) if w[0] == w0)
+        i1 = next(i for i, w in enumerate(ws) if w[0] == w1 and i >= i0)
+        subs.append({"line": key, "start": round(ws[i0][1] - 0.12, 2), "end": round(ws[i1][2] + 0.45, 2), "text": text})
+    # never overlap: trim an event if the next one starts sooner
+    for a_, b_ in zip(subs, subs[1:]):
+        if a_["end"] > b_["start"] - 0.05:
+            a_["end"] = round(b_["start"] - 0.05, 2)
+    # keep each event on screen long enough to read (~15 chars/s, min 1.3 s)
+    for i, s in enumerate(subs):
+        need = max(1.3, len(s["text"]) / 17.0)
+        limit = subs[i + 1]["start"] - 0.05 if i + 1 < len(subs) else FILM_LEN
+        s["end"] = round(min(max(s["end"], s["start"] + need), limit), 2)
+
+    cues = {"duration": FILM_LEN, "lines": lines_out, "words": words_out, "subtitles": subs}
+    with open(os.path.join(ROOT, "js", "cues.js"), "w") as f:
+        f.write("// Generated by tools/build_cues.py - narration placement, word timings and subtitles.\n")
+        f.write("window.CUES = " + json.dumps(cues, ensure_ascii=False, indent=1) + ";\n")
+
+    def ts(t, sep):
+        h, m = int(t // 3600), int(t % 3600 // 60)
+        s = t % 60
+        return f"{h:02d}:{m:02d}:{s:06.3f}".replace(".", sep)
+    with open(os.path.join(ROOT, "assets", "subtitles.vtt"), "w") as f:
+        f.write("WEBVTT\n\n")
+        for i, s in enumerate(subs, 1):
+            f.write(f"{i}\n{ts(s['start'], '.')} --> {ts(s['end'], '.')}\n{s['text']}\n\n")
+    with open(os.path.join(ROOT, "assets", "subtitles.srt"), "w") as f:
+        for i, s in enumerate(subs, 1):
+            f.write(f"{i}\n{ts(s['start'], ',')} --> {ts(s['end'], ',')}\n{s['text']}\n\n")
+    for k, v in lines_out.items():
+        print(k, v)
+    for s in subs:
+        print(f"{s['start']:6.2f}-{s['end']:6.2f}  {s['text']!r}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,6 @@
+/* Bundled typefaces (SIL Open Font License): IM Fell English by Igino Marini, EB Garamond by Georg Duffner & Octavio Pardo. */
+@font-face { font-family: 'IM Fell English'; src: url('../assets/fonts/IMFeENrm28P.ttf') format('truetype'); font-style: normal; font-display: block; }
+@font-face { font-family: 'IM Fell English'; src: url('../assets/fonts/IMFeENit28P.ttf') format('truetype'); font-style: italic; font-display: block; }
+@font-face { font-family: 'IM Fell English SC'; src: url('../assets/fonts/IMFeENsc28P.ttf') format('truetype'); font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('../assets/fonts/EBGaramond[wght].ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: block; }
+@font-face { font-family: 'EB Garamond'; src: url('../assets/fonts/EBGaramond-Italic[wght].ttf') format('truetype'); font-weight: 400 800; font-style: italic; font-display: block; }

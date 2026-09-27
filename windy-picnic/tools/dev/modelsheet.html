@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>@font-face{font-family:'IM Fell English SC';src:url(../../assets/fonts/IMFeENsc28P.ttf)} body{margin:0;background:#888}</style>
+</head><body><canvas id="c" width="1920" height="1080"></canvas>
+<script src="../../js/util.js"></script><script src="../../js/ink.js"></script><script src="../../js/characters.js"></script>
+<script src="../../js/props.js"></script>
+<script>
+const c=document.getElementById('c'), g=c.getContext('2d');
+g.drawImage(WP.ink.makePaper(1920,1080),0,0);
+const {drawPooh, drawPiglet, walkCycle}=WP.chars;
+function put(x,y,s,flip,fn){g.save();g.translate(x,y);g.scale(s*flip,s);fn();g.restore();}
+const S=1.45;
+put(200,520,S,1,()=>drawPooh(g,{}));
+put(520,520,S,1,()=>drawPooh(g,Object.assign({},walkCycle(0.25,1,0))));
+put(840,520,S,1,()=>drawPooh(g,Object.assign({},walkCycle(0.2,1,1))));
+put(1180,520,S,1,()=>drawPooh(g,{sit:1, armN:0.7, armF:0.6, armNCurl:0.9, eye:2, mouth:1}));
+put(1560,520,S,-1,()=>drawPooh(g,{head:-0.3, armN:2.4, armNCurl:-0.2, armF:0.3, mouth:-1, lean:-0.1, earWind:1, lookY:-1}));
+put(200,1000,S,1,()=>drawPiglet(g,{}));
+put(440,1000,S,1,()=>drawPiglet(g,Object.assign({},walkCycle(0.25,1,1))));
+put(680,1000,S,-1,()=>drawPiglet(g,{armN:1.2, armF:1.0, mouth:-1, earN:0.6, earF:0.6}));
+put(920,1000,S,1,()=>drawPiglet(g,{sit:1, eye:2, mouth:1}));
+if (WP.props) { put(1150,1000,S,1,()=>WP.props.drawPot(g,{})); put(1300,1000,S*1.6,1,()=>WP.props.drawBee(g,{t:0.1}));}
+// size comparison: Pooh + Piglet side by side
+put(1500,1000,1.0,1,()=>drawPooh(g,{head:0.12, lookY:1}));
+put(1680,1000,1.0,-1,()=>drawPiglet(g,{head:-0.15}));
+document.title='done';
+</script></body></html>

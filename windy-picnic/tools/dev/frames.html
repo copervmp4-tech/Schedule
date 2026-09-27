@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../css/fonts.css">
+<style>body{margin:0;background:#222}</style></head><body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="../../js/util.js"></script><script src="../../js/ink.js"></script><script src="../../js/characters.js"></script>
+<script src="../../js/props.js"></script><script src="../../js/world.js"></script><script src="../../js/cloth.js"></script>
+<script src="../../js/film.js"></script><script src="../../js/cues.js"></script>
+<script>
+window.ready = false;
+(async () => {
+  await document.fonts.load('118px "IM Fell English"'); await document.fonts.load('italic 50px "IM Fell English"');
+  await document.fonts.load('500 46px "EB Garamond"'); await document.fonts.load('12px "IM Fell English SC"');
+  const t0 = performance.now();
+  await WP.film.init();
+  window.initMs = performance.now() - t0;
+  window.ready = true;
+})();
+window.renderAt = (t) => { const c = document.getElementById('c'); const g = c.getContext('2d'); const s = performance.now(); WP.film.render(g, t, {cues: window.CUES.subtitles}); return performance.now() - s; };
+window.grab = (t, q) => { const ms = window.renderAt(t); return {ms, url: document.getElementById('c').toDataURL('image/jpeg', q || 0.85)}; };
+</script></body></html>

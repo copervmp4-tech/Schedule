@@ -1,0 +1,12 @@
+import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import fs from 'fs';
+import path from 'path';
+const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+const page = await browser.newPage();
+page.on('pageerror', e => console.log('pageerror:', e.message));
+await page.goto('file://' + path.resolve('frames.html'));
+await page.waitForFunction(() => window.ready === true, null, { timeout: 180000 });
+const data = await page.evaluate(() => WP.film.soundEvents());
+fs.writeFileSync(path.resolve('../../tools/audio_events.json'), JSON.stringify(data));
+console.log('steps', data.events.length, data.events.slice(0, 6));
+await browser.close();
