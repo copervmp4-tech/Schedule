@@ -55,16 +55,18 @@
     } else if (t < 33.4) {
       const px = poohX(t) + 250;
       const k = seg(t, 26.6, 27.7, ease.inOutSine);
-      c = [lerp(362, px, k), lerp(-156, -212, k), lerp(2.05, 1.36, k)];
+      c = [lerp(362, px, k), lerp(-156, -200, k), lerp(2.05, 1.5, k)];
     } else if (t < 35.3) {
       const k = seg(t, 33.4, 34.4, ease.inOutSine);
-      c = [lerp(poohX(33.4) + 250, 3345, k), lerp(-212, -218, k), lerp(1.36, 1.6, k)];
+      c = [lerp(poohX(33.4) + 250, 3345, k), lerp(-200, -218, k), lerp(1.5, 1.6, k)];
     } else if (t < 39.2) {
       c = track([[35.3, [3345, -218, 1.6]], [36.0, [3318, -180, 1.84], ease.inOutSine], [38.9, [3322, -184, 1.88], ease.inOutSine], [39.2, [3330, -190, 1.84]]], t);
     } else if (t < T.cut2) {
-      c = track([[39.2, [3330, -190, 1.84]], [40.4, [3520, -250, 1.36], ease.inOutSine], [42.9, [4110, -262, 1.14], ease.inOutSine], [45, [4125, -250, 1.2], ease.inOutSine]], t);
+      c = track([[39.2, [3330, -190, 1.84]], [40.4, [3520, -250, 1.36], ease.inOutSine], [42.7, [4060, -262, 1.16], ease.inOutSine], [43.6, [4040, -205, 1.5], ease.inOutSine], [45, [4052, -200, 1.56], ease.inOutSine]], t);
     } else {
-      c = track([[45, [4142, -118, 2.2]], [51.0, [4148, -122, 2.34], ease.inOutSine], [57.2, [4150, -330, 0.94], ease.inOutCubic], [60, [4150, -334, 0.92]]], t);
+      const k = track([[45, [4142, 2.2]], [51.0, [4148, 2.34], ease.inOutSine], [57.2, [4165, 1.1], ease.inOutCubic], [60, [4165, 1.08]]], t);
+      // hold the picnic just above the subtitle band while pulling back
+      c = [k[0], -26 - 262 / k[1] - 24 * seg(t, 53, 57.2), k[1]];
     }
     return { x: c[0], y: c[1], z: c[2] };
   }
@@ -102,8 +104,8 @@
     lean: [[0, 0], [6.5, 0], [6.95, -0.07], [7.35, 0.1, ease.outQuad], [7.9, 0], [9.3, 0], [9.52, 0.36], [9.62, 0.34], [9.9, 0.03], [10.12, 0.05], [10.36, 0.3], [10.55, 0.28], [10.8, 0.02],
       [16.9, 0.0], [17.45, 0.15], [18.5, 0.12], [19.1, 0], [22.6, 0.03], [23.1, -0.13, ease.outQuad], [23.7, -0.06], [24.4, 0], [25.2, 0.12], [25.75, 0.1], [25.95, 0], [26.2, 0.02], [26.4, 0.32], [26.55, 0.3], [26.7, -0.1], [26.85, 0.05]],
     armN: [[0, 0.62], [6.9, 0.62], [7.12, 0.3], [7.35, 1.95, ease.outQuad], [7.8, 1.35], [8.5, 0.35], [9.3, 0.35], [9.5, 0.95], [9.62, 0.95], [9.85, 0.6], [10.2, 0.62], [10.38, 1.05], [10.52, 1.05], [10.65, 0.85], [10.72, 1.0], [10.9, 0.3],
-      [11.3, 1.4, ease.outBack], [12.3, 1.35], [12.7, 0.45], [16.9, 0.32], [17.4, 1.25, ease.outBack], [18.0, 1.1], [18.6, 0.35], [22.9, 0.3], [23.12, 0.85, ease.outQuad], [23.7, 0.55], [24.5, 0.32], [26.2, 0.35], [26.42, 1.0], [26.55, 0.62]],
-    armNCurl: [[0, 0.95], [6.9, 0.95], [7.2, 0.2], [8.5, 0.35], [9.5, 0.3], [9.85, 0.95], [10.3, 0.4], [10.9, 0.35], [11.3, -0.15], [12.3, -0.1], [12.7, 0.35], [17.3, 0.35], [17.4, -0.2], [18.1, -0.1], [18.6, 0.35], [26.3, 0.35], [26.55, 0.9]],
+      [11.3, 1.4, ease.outBack], [12.3, 1.35], [12.7, 0.45], [16.9, 0.32], [17.35, 1.25, ease.outBack], [17.7, 1.15], [18.0, 1.05], [18.3, 1.1], [18.8, 0.4], [22.9, 0.3], [23.12, 0.85, ease.outQuad], [23.7, 0.55], [24.5, 0.32], [26.2, 0.35], [26.42, 1.0], [26.55, 0.62]],
+    armNCurl: [[0, 0.95], [6.9, 0.95], [7.2, 0.2], [8.5, 0.35], [9.5, 0.3], [9.85, 0.95], [10.3, 0.4], [10.9, 0.35], [11.3, -0.15], [12.3, -0.1], [12.7, 0.35], [17.3, 0.35], [17.4, -0.2], [17.7, -0.1], [18.0, 1.9], [18.3, 1.95], [18.8, 0.35], [26.3, 0.35], [26.55, 0.9]],
     armF: [[0, 0.55], [6.9, 0.55], [7.12, 0.25], [7.35, 1.75, ease.outQuad], [7.8, 1.2], [8.5, 0.25], [9.3, 0.25], [9.5, 0.85], [9.62, 0.85], [9.85, 0.5], [10.2, 0.5], [10.38, 0.9], [10.52, 0.9], [10.9, 0.2], [22.9, 0.22], [23.12, 0.7], [23.7, 0.45], [24.5, 0.22], [26.2, 0.25], [26.42, 0.9], [26.55, 0.52]],
     head: [[0, 0.05], [5.5, 0.05], [6.4, -0.08], [7.2, 0.0], [7.5, -0.12], [8.5, 0.02], [9.25, 0.14], [9.6, 0.2], [10.0, 0.08], [10.45, 0.18], [10.9, 0.05], [11.3, 0.06], [12.2, -0.04], [12.7, -0.02], [13.6, 0.02], [14.6, 0.14], [16.9, 0.13], [17.4, 0.2], [18.6, 0.12], [19.6, 0.0], [20.1, 0.1], [20.9, 0.18], [22.8, 0.16], [23.2, -0.2], [23.8, -0.38], [24.6, -0.42], [25.2, 0.25], [25.75, 0.22], [25.95, 0.05], [26.4, 0.2], [26.6, 0.0]],
     mouth: [[0, 0.5], [22.95, 0.4], [23.05, -1], [24.6, -1], [24.7, 0.0], [25.8, 0.0], [26.1, 0.4]],
@@ -295,8 +297,10 @@
     // happy hop on "For us"
     if (t > T.hop && t < T.hop + 0.6) {
       const u = (t - T.hop) / 0.6;
-      P.bob -= Math.sin(u * Math.PI) * 26;
-      P.squash = u < 0.12 ? 0.9 : u > 0.9 ? 0.92 : 1.05;
+      P.bob -= Math.sin(u * Math.PI) * 42;
+      P.squash = u < 0.12 ? 0.88 : u > 0.9 ? 0.9 : 1.06;
+      P.armN = lerp(P.armN, 2.2, Math.sin(u * Math.PI));
+      P.armF = lerp(P.armF, 2.0, Math.sin(u * Math.PI));
     }
     // turns to watch the cloth fly off, turns back to Pooh, turns to run
     if (t > 23.85 && t < 25.8) s.facing = 1;
@@ -389,7 +393,7 @@
     if (t > 10.6 && t < 24.5) {
       for (let i = 0; i < 2; i++) {
         const ph = t * (1.3 + i * 0.4) + i * 2;
-        let x = 312 + Math.cos(ph) * (55 + i * 20) + noise1(t * 1.3 + i * 9) * 15;
+        let x = 372 + Math.cos(ph) * (45 + i * 18) + noise1(t * 1.3 + i * 9) * 15;
         let y = -95 - Math.sin(ph * 1.6) * 30 + noise1(t * 1.7 + i) * 12 - i * 30;
         const enter = seg(t, 10.6 + i * 1.2, 12 + i * 1.2);
         x = lerp(-250 + i * 60, x, enter);
@@ -411,14 +415,15 @@
         const tt = t - lag;
         let x, y;
         if (t < 34.2) {
-          x = poohX(tt) + 40 + noise1(t * 2 + i * 5) * 30;
-          y = -170 - i * 18 + noise1(t * 2.4 + i * 3) * 30 + Math.sin(t * 8 + i) * 6;
+          x = poohX(tt) - 60 - i * 34 + noise1(t * 2 + i * 5) * 26;
+          y = -150 - i * 14 + noise1(t * 2.4 + i * 3) * 30 + Math.sin(t * 8 + i) * 6;
         } else if (t < 39.1) {
-          x = 3232 + Math.cos(t * (1.8 + i * 0.3) + i) * (40 + i * 10);
-          y = -110 - Math.sin(t * (2.3 + i * 0.2) + i) * 25 - i * 12;
+          // circling the pot where Pooh set it down, low and to his left
+          x = 3190 + Math.cos(t * (1.8 + i * 0.3) + i) * (45 + i * 12);
+          y = -60 - Math.sin(t * (2.3 + i * 0.2) + i) * 22 - i * 9;
         } else {
-          x = poohX(tt) + 40 + noise1(t * 2 + i * 5) * 30;
-          y = -170 - i * 16 + noise1(t * 2.4 + i * 3) * 26;
+          x = poohX(tt) - 60 - i * 34 + noise1(t * 2 + i * 5) * 26;
+          y = -150 - i * 12 + noise1(t * 2.4 + i * 3) * 26;
         }
         const enter = seg(t, 29.4 + i * 0.15, 30.3 + i * 0.15);
         x = lerp(x - 900, x, enter);
@@ -426,8 +431,8 @@
       }
     }
     if (t >= 45) {
-      for (let i = 0; i < 4; i++) {
-        const cx = [4140, 4330, 3950, 4230][i], cy = [-120, -60, -70, -150][i];
+      for (let i = 0; i < 3; i++) {
+        const cx = [4400, 3880, 4470][i], cy = [-90, -70, -170][i];
         const ph = t * (1.1 + i * 0.25) + i * 1.7;
         const x = cx + Math.cos(ph) * (30 + i * 8) + noise1(t + i * 4) * 12;
         const y = cy + Math.sin(ph * 1.5) * 18 + noise1(t * 1.3 + i) * 8;
@@ -527,11 +532,11 @@
       const r = R();
       const inClearing = x > 3800 && x < 4600;
       if (inClearing) {
-        if (r < 0.55) L.ground.push({ s: pick(S.flowers), x: px, y: py, sc: 0.8 + R() * 0.4, flip: 1, sway: 0.8, z });
+        if (r < 0.7) L.ground.push({ s: pick(S.flowers), x: px, y: py, sc: 1.1 + R() * 0.5, flip: 1, sway: 0.8, z });
         else L.ground.push({ s: pick(S.grass), x: px, y: py, sc: 0.8 + R() * 0.4, flip: flip(), sway: 1, z });
         continue;
       }
-      if (x > 900 && x < 3300 && r < 0.3) L.ground.push({ s: pick(S.gorse), x: px, y: py, sc: 0.7 + R() * 0.3, flip: flip(), sway: 0.3, z });
+      if (x > 900 && x < 3300 && r < 0.14) L.ground.push({ s: pick(S.gorse), x: px, y: py, sc: 0.7 + R() * 0.3, flip: flip(), sway: 0.3, z });
       else if (r < 0.5) L.ground.push({ s: pick(S.heather), x: px, y: py, sc: 1.1 + R() * 0.5, flip: 1, sway: 0.4, z });
       else if (r < 0.82) L.ground.push({ s: pick(S.grass), x: px, y: py, sc: 0.9 + R() * 0.5, flip: flip(), sway: 1, z });
       else L.ground.push({ s: pick(S.bracken), x: px, y: py, sc: 0.7 + R() * 0.3, flip: flip(), sway: 0.6, z });
@@ -539,11 +544,9 @@
     // the gorse bush that catches the cloth
     const [sx, sy] = back(CL.SNAG.x, 120);
     L.ground.push({ s: S.snagGorse, x: sx, y: sy, sc: 1.0, flip: 1, sway: 0.15, z: 120 });
-    // two old trees that frame the clearing, with leaves hanging over it
+    // two old trees that frame the clearing
     L.ground.push({ s: S.bigTrunkL, x: 3640, y: -118, sc: 0.8, flip: 1, z: 330 });
     L.ground.push({ s: S.bigTrunkR, x: 4660, y: -128, sc: 0.85, flip: 1, z: 360 });
-    L.ground.push({ s: S.canopy[0], x: 3760, y: -1060, sc: 1.1, flip: 1, z: 329, sway: 0.3 });
-    L.ground.push({ s: S.canopy[1], x: 4520, y: -1100, sc: 1.15, flip: -1, z: 359, sway: 0.3 });
     L.ground.sort((a, b) => (b.z ?? 0) - (a.z ?? 0));
     // things in front of the characters on the ground plane
     const [gx, gy] = back(592, 118);
@@ -557,7 +560,8 @@
       const r = R();
       L.fg.push({ s: r < 0.6 ? pick(S.grass) : pick(S.fgBracken), x: X * 1.35, y: 250 + R() * 50, sc: r < 0.6 ? 1.7 + R() * 0.5 : 0.9 + R() * 0.3, flip: flip(), sway: 1 });
     }
-    for (const x of [2080, 3800]) L.fg.push({ s: S.fgTrunk, x, y: 330, sc: 1.0, flip: x % 2 ? 1 : -1 });
+    // big soft bracken fronds sweeping past low in the frame during the chase (never over the characters)
+    for (const X of [1150, 1650, 2150, 2700, 3150]) L.fg.push({ s: pick(S.fgBracken), x: X * 1.35, y: 330, sc: 1.6, flip: flip(), sway: 1 });
     return L;
   }
 
@@ -576,7 +580,7 @@
 
   /* ================================================================ init */
 
-  let SCENE, ACT, SIL, SHADOW, PAPER, GRAIN, SKY, TITLE, PLATE_MASK, ENDPAGE, GROUND_PAT;
+  let SCENE, ACT, SIL, SHADOW, PAPER, GRAIN, SKY, TITLE, PLATE_MASK, GROUND_PAT;
 
   function makeSky() {
     const c = makeCanvas(W, H);
@@ -816,7 +820,7 @@
       const [bx, by] = groundXY(b.x, b.z, -b.y);
       a.save();
       a.translate(bx, by);
-      a.scale(1.25, 1.25);
+      a.scale(1.9, 1.9);
       drawBee(a, { t, seed: b.seed, rot: b.rot });
       a.restore();
     }
@@ -855,6 +859,25 @@
     ctx.drawImage(ACT, bb.x, bb.y, bb.w, bb.h, bb.x, bb.y, bb.w, bb.h);
     ctx.restore();
     return { pS, gS };
+  }
+
+  /** The clearing's patch of sunlight, warm on the grass where the cloth comes to rest. */
+  function sunPool(ctx, xf, t) {
+    const k = seg(t, 39.8, 42.5);
+    if (k <= 0) return;
+    const [px, py] = groundXY(CL.CLEARING.x, CL.CLEARING.z);
+    ctx.save();
+    ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+    ctx.globalCompositeOperation = 'screen';
+    ctx.translate(px, py);
+    ctx.scale(1, 0.34);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 620);
+    g.addColorStop(0, `rgba(120,95,40,${0.55 * k})`);
+    g.addColorStop(0.55, `rgba(110,85,35,${0.25 * k})`);
+    g.addColorStop(1, 'rgba(255,226,150,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-620, -620, 1240, 1240);
+    ctx.restore();
   }
 
   function actorBounds(xf, pS, gS, pt, G, t) {
@@ -961,6 +984,7 @@
     P.bands = now() - q; q = now();
     drawGround(ctx, gxf, t);
     P.ground = now() - q; q = now();
+    sunPool(ctx, gxf, t);
     drawActors(ctx, gxf, t);
     P.actors = now() - q; q = now();
     drawForeground(ctx, cam, t);
@@ -969,7 +993,16 @@
     drawLeaves(ctx, t, cam);
     dapple(ctx, t, cam);
     P.fx = now() - q;
-    sunRays(ctx, t, seg(t, 39.5, 42) * (t < T.cut2 ? 1 : 0.55) + seg(t, 52, 56) * 0.45);
+    sunRays(ctx, t, seg(t, 39.5, 42) * (t < T.cut2 ? 1.25 : 0.7) + seg(t, 52, 56) * 0.5);
+    // painterly light: warm from the upper left, a soft sepia shade gathering low on the right
+    const L1 = 0.5 + 0.25 * seg(t, 39.5, 43);
+    ctx.globalCompositeOperation = 'soft-light';
+    let lg = ctx.createLinearGradient(0, 0, W, H);
+    lg.addColorStop(0, `rgba(255,236,196,${0.55 * L1})`);
+    lg.addColorStop(0.55, 'rgba(255,236,196,0)');
+    lg.addColorStop(1, `rgba(70,50,30,${0.45 * L1})`);
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, 0, W, H);
     // time of day: warmer and softer towards the end
     const warm = 0.1 + 0.3 * seg(t, 44, 58);
     ctx.globalCompositeOperation = 'multiply';

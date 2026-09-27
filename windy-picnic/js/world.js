@@ -347,7 +347,7 @@
   function gorseSprite(w, h, seed, o = {}) {
     const R = rng(seed);
     return sprite(w + 60, h + 40, (w + 60) / 2, h + 20, (g) => {
-      const path = foliage(g, 0, -h * 0.5, w * 0.5, h * 0.62, seed, { n: 12, flat: 0.9, color: PAL.mossDeep, shadeColor: PAL.ink, alpha: 0.6, hSp: 2.3, hA: 0.7, flicks: false, edgeProb: 0.5 });
+      const path = foliage(g, 0, -h * 0.5, w * 0.5, h * 0.62, seed, { n: 12, flat: 0.9, color: PAL.moss, shadeColor: PAL.mossDeep, alpha: 0.55, hSp: 2.8, hA: 0.55, flicks: false, edgeProb: 0.5 });
       // spines
       for (let i = 0; i < w * 0.9; i++) {
         const a = Math.PI + R() * Math.PI, r = Math.sqrt(R());
@@ -469,7 +469,7 @@
       for (let i = 0; i < w * 0.09; i++) {
         const x = (R() - 0.5) * w, hh = 14 + R() * 34;
         ink.line(g, [[x, 0], [x + (R() - 0.5) * 8, -hh * 0.6], [x + (R() - 0.5) * 10, -hh]], { w: 0.9, seed: i + seed, alpha: 0.7 });
-        const col = [PAL.paperLight, PAL.honeyLight, PAL.honey, PAL.paperLight][i % 4];
+        const col = [PAL.paperLight, PAL.honeyLight, PAL.honey, PAL.blush, PAL.paperLight][i % 5];
         const fx = x + (R() - 0.5) * 10, fy = -hh;
         for (let p = 0; p < 5; p++) {
           const a = (p / 5) * TAU;
@@ -509,18 +509,6 @@
     if (o.wash) ink.wash(ctx, path, o.wash, { alpha: o.washA ?? 0.35, edge: o.edge ?? 0.3, edgeW: 10, texScale: o.texScale ?? 1 });
     if (o.line !== false) ink.stroke(ctx, pts, { w: o.lineW ?? 1.6, seed: o.seed, wobble: 1.5, taper: [0.01, 0.01], alpha: o.lineA ?? 0.7, color: o.lineColor ?? PAL.inkSoft, step: 6 });
     return pts;
-  }
-
-  /** A big hanging mass of leaves to frame the top of a shot. */
-  function canopySprite(w, h, seed, o = {}) {
-    return sprite(w + 80, h + 80, (w + 80) / 2, 40, (g) => {
-      const R = rng(seed);
-      ink.line(g, [[-w * 0.5, 30], [-w * 0.1, h * 0.35], [w * 0.35, h * 0.3]], { w: 7, seed: seed + 1, taper: [0.05, 0.7] });
-      for (let i = 0; i < 6; i++) {
-        const x = lerp(-w * 0.45, w * 0.42, i / 5) + (R() - 0.5) * 40, y = h * (0.25 + 0.45 * Math.sin((i / 5) * Math.PI)) + (R() - 0.5) * 30;
-        foliage(g, x, y, w * 0.2 + R() * 30, h * 0.26 + R() * 20, seed * 10 + i, { n: 9, color: i % 2 ? PAL.moss : PAL.mossDeep, alpha: 0.55 });
-      }
-    }, { res: 1.4, ...o });
   }
 
   /** Tileable ground texture: grass ticks and mottled patches, laid over the meadow band. */
@@ -577,7 +565,6 @@
     await progress(0.45);
     S.bigTrunkL = bigTrunkSprite(1500, 220, 111, { side: 1 });
     S.bigTrunkR = bigTrunkSprite(1500, 250, 112, { side: -1, color: PAL.sepia });
-    S.fgTrunk = softFocus(bigTrunkSprite(1400, 160, 113, { side: 1, res: 1.0, color: PAL.sepia, shadow: null, margin: 0 }), 5, 0.82);
     await progress(0.6);
     S.gorse = [0, 1, 2].map((i) => gorseSprite(160 + i * 50, 90 + i * 25, 200 + i, {}));
     S.snagGorse = gorseSprite(300, 170, 250, { flowers: 0.35 });
@@ -587,7 +574,6 @@
     S.grass = [0, 1, 2, 3].map((i) => grassSprite(90 + i * 30, 50 + i * 16, 500 + i, { density: 0.45 }));
     S.tallGrass = grassSprite(170, 130, 555, { density: 0.9 });
     S.flowers = [0, 1].map((i) => flowersSprite(160 + i * 60, 600 + i, {}));
-    S.canopy = [0, 1].map((i) => canopySprite(900, 360, 650 + i, {}));
     S.groundTile = groundTile();
     S.fgBracken = [0, 1].map((i) => softFocus(brackenSprite(220 + i * 60, 700 + i, { res: 1.0 }), 2.5, 0.9));
     await progress(0.85);

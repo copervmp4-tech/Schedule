@@ -228,12 +228,13 @@
     const g = c.getContext('2d');
     const img = g.createImageData(S, S);
     const nA = WP.makeNoise2(11), nB = WP.makeNoise2(23), nC = WP.makeNoise2(37);
+    const RG = rng(4711); // seeded: every renderer (and every export worker) paints the same grain
     for (let y = 0; y < S; y++) {
       for (let x = 0; x < S; x++) {
         const f1 = nA((x / S) * 4, (y / S) * 4, 4, 4);
         const f2 = nB((x / S) * 12, (y / S) * 12, 12, 12);
         const f3 = nC((x / S) * 48, (y / S) * 48, 48, 48);
-        const gran = Math.random() < 0.006 ? 0.9 : 1; // pigment granules
+        const gran = RG() < 0.006 ? 0.9 : 1; // pigment granules
         // light-grey mottling: multiplied onto a wash, it varies its density
         let v = 1 - 0.16 * Math.pow(f1, 1.6) - 0.07 * f2 - 0.05 * f3;
         v *= gran;
