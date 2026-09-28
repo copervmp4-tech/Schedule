@@ -16,6 +16,6 @@ Frames taken from the finished film. See [script.md](script.md) for the full sho
 | 0:27–0:34 | The chase over the heather and under the pines. Piglet leaps and misses, and the bees follow the honey. | Tracking shot with bracken sweeping past in the foreground |
 | 0:34–0:39 | Snagged on the gorse. Pooh reaches on tiptoe, it pops free, bump! Then "Perhaps it knows somewhere nicer." | Settles, then closer on Pooh thinking |
 | 0:39–0:45 | Into the sunlit clearing; the cloth floats down and lies flat. "It did." | Pan through the trees, then closer |
-| 0:45–0:51 | Sharing the honey: Piglet first. | Cut to a close two-shot, slow push |
+| 0:45–0:51 | Sharing the honey from the pot between them: Piglet first, then Pooh. | Cut to a close two-shot, slow push |
 | 0:51–0:57 | Piglet leans on Pooh; the light turns golden. | Long pull-back, keeping the pair above the subtitles |
 | 0:56–1:00 | The picture settles onto the page as a printed plate. *The End.* | Scene shrinks into the book |

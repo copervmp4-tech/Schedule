@@ -84,9 +84,15 @@ def build_sfx(ev):
     P(X.cloth_flap(0.5, 1.0, 24), 7.28, -10, -0.1)
     P(X.cloth_flap(0.45, 0.8, 18), 7.78, -15, 0.0)
     P(X.cloth_poof(0.8), 9.1, -15, 0.0)
-    # the honey pot
-    P(X.ceramic(0.25, thud=0.2, seed=1), T['potPick'] + 0.02, -24, -0.15)
-    P(X.ceramic(0.4, seed=2), T['potPlace'], -13, -0.05)  # the pot lands on the cloth
+    # the honey pot, each time Pooh's paw takes it up or sets it down (times from the film):
+    # (clip, level dB, pan) in order — a soft lift, the careful set-down on the cloth, the
+    # hurried scoop, the thud by the gorse, the scoop again, and the set-down in the clearing
+    pot_fx = [(X.ceramic(0.25, thud=0.2, seed=1), -24, -0.15), (X.ceramic(0.4, seed=2), -13, -0.05),
+              (X.ceramic(0.2, thud=0.15, seed=20), -22, -0.2), (X.ceramic(0.3, thud=0.5, seed=30), -16, -0.2),
+              (X.ceramic(0.2, thud=0.15, seed=40), -22, -0.2), (X.ceramic(0.3, thud=0.4, seed=50), -18, -0.15)]
+    assert len(ev['pot']) == len(pot_fx), 'pot hand-offs changed: update pot_fx'
+    for e, (clip, g, pan) in zip(ev['pot'], pot_fx):
+        P(clip, e['t'] + (0.02 if e['kind'] == 'pick' else 0.0), g, pan)
     # Piglet pops up from the long grass and trots over
     P(X.grass_rustle(0.55), T['pigletPop'] - 0.03, -14, 0.35)
     P(X.grass_rustle(0.45), 13.3, -18, 0.3)
@@ -114,8 +120,6 @@ def build_sfx(ev):
     k = np.linspace(1, 0, len(away)) ** 1.6
     away = away * k
     S.place(out, np.stack([away * 0.45, away * 1.0], axis=1).astype(np.float32), 23.3, db(-12))
-    # pot scooped up; the run
-    P(X.ceramic(0.2, thud=0.15, seed=20), 26.42, -22, -0.2)
     # Piglet's leap and landing
     P(X.cloth_whisk(0.35), 30.72, -24, 0.2)
     P(X.step('piglet', 31), 31.35, -14, 0.1)
@@ -123,23 +127,18 @@ def build_sfx(ev):
     P(X.grass_rustle(0.6), 33.72, -12, 0.25)
     flag = X.flutter_loop(1.3, 17, 1.1)
     P(flag * np.linspace(1, 0.8, len(flag)), 33.75, -13, 0.3)
-    P(X.ceramic(0.3, thud=0.5, seed=30), 34.28, -16, -0.2)
     for h in (34.12, 34.55):
         P(X.step('piglet', int(h * 100)), h + 0.34, -18, 0.15)
     P(X.cloth_whisk(0.4), 34.93, -10, 0.35)
     P(X.bump(0.4), 35.35, -8, -0.15)
     drift = X.flutter_loop(5.0, 9, 0.7)
     P(drift * np.linspace(0.6, 0.05, len(drift)) ** 1.3, 35.1, -20, 0.5)
-    P(X.ceramic(0.2, thud=0.15, seed=40), 39.12, -22, -0.2)
     # the cloth floats down into the clearing
     fall = X.flutter_loop(2.4, 6, 0.5)
     P(fall * np.hanning(len(fall)), 40.4, -22, 0.2)
     P(X.cloth_poof(0.9), 42.75, -14, 0.1)
-    P(X.ceramic(0.3, thud=0.4, seed=50), 43.1, -18, -0.15)
-    # sharing the honey
-    P(X.ceramic(0.2, thud=0.1, seed=60), 45.72, -24, 0.0)
-    P(X.honey_plip(), 46.95, -17, 0.12)
-    P(X.ceramic(0.3, thud=0.4, seed=61), 48.92, -20, 0.0)
+    # sharing the honey: Piglet's paw goes in, then Pooh's
+    P(X.honey_plip(), 46.9, -17, 0.12)
     P(X.honey_plip(), 49.35, -18, -0.1)
     rus = X.grass_rustle(0.9)
     P(X.lp(rus, 3000) * 0.8, 51.3, -22, 0.1)

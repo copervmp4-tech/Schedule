@@ -116,7 +116,7 @@ VSCO_DIR=/tmp/vsco python3 tools/build_audio.py
 node tools/export_video.mjs               # needs Playwright + ffmpeg with libx264
 ```
 
-For the VSCO sample folders to check out sparsely, see `tools/build_audio.py`. `tools/dev/` holds the review harnesses used during production: frame grabs, filmstrips, profiling and player tests.
+For the VSCO sample folders to check out sparsely, see `tools/build_audio.py`. `tools/dev/` holds the review harnesses used during production: frame grabs, filmstrips, pop and collision scans, profiling and player tests.
 
 ## Delivery notes and limitations
 

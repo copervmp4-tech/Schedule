@@ -15,12 +15,11 @@
   const T = {
     pageTurn: [4.35, 5.4],
     fling: 7.35, clothDown: 9.25,
-    potPick: 9.55, potPlace: 10.46,
-    present: 11.05, pigletPop: 12.36, pigletOut: 13.4, pigletStop: 14.35,
+    pigletPop: 12.36, pigletOut: 13.4, pigletStop: 14.35,
     forMe: 14.72, forUs: 17.2, hop: 18.15,
     leaf: 19.5, lift: 20.8, gust: 23.05, cut1: 25.2,
     run: 26.75, snag: 33.75, free: 34.95, bump: 35.35, rise: 38.75, walk: 39.25, land: 42.8,
-    cut2: 45.0, offer: 45.7, dip: 46.75, taste: 47.35, set: 48.6, poohDip: 49.1, lean: 51.3,
+    cut2: 45.0, lean: 51.3,
     pull: 51.0, plate: [55.6, 57.4], end: 57.5,
   };
 
@@ -79,22 +78,28 @@
   /* ================================================================ Pooh */
 
   const RUN0 = 26.75, RUN1 = 34.0;
+  const POOH_HOME = 185;              // by his door, where the picnic starts
+  const POOH_MEADOW = 255;            // where Pooh stands by the cloth, after one step
+  const STEP = [10.02, 10.55];        // that step, carrying the pot to the cloth
+  const POOH_SNAG = 3225;             // where he pulls up by the gorse
+  const POOH_WALK = 39.72;            // he sets off into the clearing once he has the pot again
+  const WALK_V = (185 * (42.7 - 39.25)) / (42.7 - POOH_WALK); // arriving where he always did
   function poohX(t) {
-    if (t < 9.8) return 205;
-    if (t < RUN0) return lerp(205, 222, seg(t, 9.8, 10.1));
+    if (t < 9.8) return POOH_HOME;
+    if (t < RUN0) return lerp(POOH_HOME, POOH_MEADOW, seg(t, STEP[0], STEP[1], ease.inOutSine));
     if (t < RUN1) {
       // accelerate, run, and pull up by the gorse
       const a = 26.75, b = 27.35, c = 33.3, d = 34.0;
-      const v = 455;
-      if (t < b) return 222 + v * 0.5 * ((t - a) * (t - a)) / (b - a);
-      const xb = 222 + v * 0.5 * (b - a);
+      const v = (POOH_SNAG - POOH_MEADOW) / (0.5 * (b - a) + (c - b) + 0.5 * (d - c));
+      if (t < b) return POOH_MEADOW + v * 0.5 * ((t - a) * (t - a)) / (b - a);
+      const xb = POOH_MEADOW + v * 0.5 * (b - a);
       if (t < c) return xb + v * (t - b);
       const xc = xb + v * (c - b);
       const u = (t - c) / (d - c);
       return xc + v * (d - c) * (u - 0.5 * u * u);
     }
-    if (t < T.walk) return poohX(RUN1 - 1e-6);
-    if (t < 42.7) return poohX(RUN1 - 1e-6) + 185 * (t - T.walk) - 185 * 0.5 * Math.pow(seg(t, 42.2, 42.7), 2) * 0.5;
+    if (t < POOH_WALK) return poohX(RUN1 - 1e-6);
+    if (t < 42.7) return poohX(RUN1 - 1e-6) + WALK_V * (t - POOH_WALK) - WALK_V * 0.5 * Math.pow(seg(t, 42.2, 42.7), 2) * 0.5;
     if (t < T.cut2) return poohX(42.699);
     return 4060;
   }
@@ -102,13 +107,13 @@
   const PIG_RUN = 118, PIG_WALK = 92, PIG_TROT = 60;
 
   const poohTracks = {
-    lean: [[0, 0], [6.5, 0], [6.95, -0.07], [7.35, 0.1, ease.outQuad], [7.9, 0], [9.3, 0], [9.52, 0.36], [9.62, 0.34], [9.9, 0.03], [10.12, 0.05], [10.36, 0.3], [10.55, 0.28], [10.8, 0.02],
-      [16.9, 0.0], [17.45, 0.15], [18.5, 0.12], [19.1, 0], [22.6, 0.03], [23.1, -0.13, ease.outQuad], [23.7, -0.06], [24.4, 0], [25.2, 0.12], [25.75, 0.1], [25.95, 0], [26.2, 0.02], [26.4, 0.32], [26.55, 0.3], [26.7, -0.1], [26.85, 0.05]],
-    armN: [[0, 0.62], [6.9, 0.62], [7.12, 0.3], [7.35, 1.95, ease.outQuad], [7.8, 1.35], [8.5, 0.35], [9.3, 0.35], [9.5, 0.95], [9.62, 0.95], [9.85, 0.6], [10.2, 0.62], [10.38, 1.05], [10.52, 1.05], [10.65, 0.85], [10.72, 1.0], [10.9, 0.3],
-      [11.3, 1.4, ease.outBack], [12.3, 1.35], [12.7, 0.45], [16.9, 0.32], [17.35, 1.25, ease.outBack], [17.7, 1.15], [18.0, 1.05], [18.3, 1.1], [18.8, 0.4], [22.9, 0.3], [23.12, 0.85, ease.outQuad], [23.7, 0.55], [24.5, 0.32], [26.2, 0.35], [26.42, 1.0], [26.55, 0.62]],
-    armNCurl: [[0, 0.95], [6.9, 0.95], [7.2, 0.2], [8.5, 0.35], [9.5, 0.3], [9.85, 0.95], [10.3, 0.4], [10.9, 0.35], [11.3, -0.15], [12.3, -0.1], [12.7, 0.35], [17.3, 0.35], [17.4, -0.2], [17.7, -0.1], [18.0, 1.9], [18.3, 1.95], [18.8, 0.35], [26.3, 0.35], [26.55, 0.9]],
-    armF: [[0, 0.55], [6.9, 0.55], [7.12, 0.25], [7.35, 1.75, ease.outQuad], [7.8, 1.2], [8.5, 0.25], [9.3, 0.25], [9.5, 0.85], [9.62, 0.85], [9.85, 0.5], [10.2, 0.5], [10.38, 0.9], [10.52, 0.9], [10.9, 0.2], [22.9, 0.22], [23.12, 0.7], [23.7, 0.45], [24.5, 0.22], [26.2, 0.25], [26.42, 0.9], [26.55, 0.52]],
-    head: [[0, 0.05], [5.5, 0.05], [6.4, -0.08], [7.2, 0.0], [7.5, -0.12], [8.5, 0.02], [9.25, 0.14], [9.6, 0.2], [10.0, 0.08], [10.45, 0.18], [10.9, 0.05], [11.3, 0.06], [12.2, -0.04], [12.7, -0.02], [13.6, 0.02], [14.6, 0.14], [16.9, 0.13], [17.4, 0.2], [18.6, 0.12], [19.6, 0.0], [20.1, 0.1], [20.9, 0.18], [22.8, 0.16], [23.2, -0.2], [23.8, -0.38], [24.6, -0.42], [25.2, 0.25], [25.75, 0.22], [25.95, 0.05], [26.4, 0.2], [26.6, 0.0]],
+    lean: [[0, 0], [6.5, 0], [6.95, -0.07], [7.35, 0.1, ease.outQuad], [7.9, 0], [9.1, 0], [10.9, 0.04], [11.4, 0.02],
+      [16.9, 0.0], [17.45, 0.15], [18.5, 0.12], [19.1, 0], [22.6, 0.03], [23.1, -0.13, ease.outQuad], [23.7, -0.06], [24.4, 0], [25.2, 0.12], [25.75, 0.1], [25.95, 0], [26.2, 0.02], [26.62, 0.04], [26.72, -0.08], [26.85, 0.05]],
+    armN: [[0, 0.62], [6.9, 0.62], [7.12, 0.3], [7.35, 1.95, ease.outQuad], [7.8, 1.35], [8.5, 0.35], [9.1, 0.35], [9.7, 0.6], [10.9, 0.6],
+      [11.45, 1.4, ease.outBack], [12.3, 1.35], [12.7, 0.45], [16.9, 0.32], [17.35, 1.25, ease.outBack], [17.7, 1.15], [18.0, 1.05], [18.3, 1.1], [18.8, 0.4], [22.9, 0.3], [23.12, 0.85, ease.outQuad], [23.7, 0.55], [24.5, 0.32], [26.2, 0.35], [26.55, 0.62]],
+    armNCurl: [[0, 0.95], [6.9, 0.95], [7.2, 0.2], [8.5, 0.35], [9.1, 0.35], [9.7, 0.95], [10.9, 0.95], [11.45, -0.15], [12.3, -0.1], [12.7, 0.35], [17.3, 0.35], [17.4, -0.2], [17.7, -0.1], [18.0, 1.9], [18.3, 1.95], [18.8, 0.35], [26.2, 0.35], [26.55, 0.95]],
+    armF: [[0, 0.55], [6.9, 0.55], [7.12, 0.25], [7.35, 1.75, ease.outQuad], [7.8, 1.2], [8.5, 0.25], [9.1, 0.25], [9.7, 0.55], [10.9, 0.55], [11.3, 0.2], [22.9, 0.22], [23.12, 0.7], [23.7, 0.45], [24.5, 0.22], [26.2, 0.25], [26.55, 0.55]],
+    head: [[0, 0.05], [5.5, 0.05], [6.4, -0.08], [7.2, 0.0], [7.5, -0.12], [8.5, 0.02], [9.0, 0.1], [10.2, 0.04], [10.9, 0.05], [11.3, 0.06], [12.2, -0.04], [12.7, -0.02], [13.6, 0.02], [14.6, 0.14], [16.9, 0.13], [17.4, 0.2], [18.6, 0.12], [19.6, 0.0], [20.1, 0.1], [20.9, 0.18], [22.8, 0.16], [23.2, -0.2], [23.8, -0.38], [24.6, -0.42], [25.2, 0.25], [25.75, 0.22], [25.95, 0.05], [26.4, 0.2], [26.6, 0.0]],
     mouth: [[0, 0.5], [22.95, 0.4], [23.05, -1], [24.6, -1], [24.7, 0.0], [25.8, 0.0], [26.1, 0.4]],
     brow: [[0, 0], [20.9, 0], [21.3, 1], [22.8, 1], [23.1, 1.5], [24.8, 0.5], [25.2, 0.8], [26.2, -0.5], [26.8, 0]],
     lookY: [[0, 0], [23.2, -0.6], [24.9, -0.8], [25.2, 0.8], [25.8, 0.5], [26.0, 0]],
@@ -117,10 +122,10 @@
   };
   const poohTracks2 = {
     // snag, bump, thinking, walk and the clearing
-    lean: [[33.3, 0.12], [34.0, -0.04], [34.25, 0.25], [34.45, 0.02], [34.7, -0.12], [34.95, -0.16], [35.1, 0.06], [35.25, -0.14], [35.35, 0.05], [35.8, 0.02], [38.7, 0.05], [38.95, 0.25], [39.15, 0.3], [39.3, 0.04], [42.6, 0.04], [43.2, 0.08], [44.0, 0]],
-    armN: [[33.3, 0.62], [33.9, 0.6], [34.1, 1.05], [34.3, 1.05], [34.55, 2.05, ease.outQuad], [34.95, 2.35], [35.15, 1.7], [35.35, 0.9], [35.9, 0.9], [36.4, 2.45], [38.6, 2.45], [38.9, 0.9], [39.1, 1.1], [39.3, 0.62], [42.6, 0.62], [43.3, 0.6]],
-    armNCurl: [[33.3, 0.9], [33.9, 0.9], [34.1, 0.3], [34.55, -0.15], [34.95, -0.2], [35.35, 0.4], [36.4, 1.55], [38.6, 1.55], [38.9, 0.4], [39.3, 0.9]],
-    armF: [[33.3, 0.52], [33.9, 0.5], [34.1, 0.9], [34.3, 0.9], [34.55, 0.6], [34.95, 0.9], [35.15, 1.4], [35.35, 0.7], [35.9, 0.55], [38.8, 0.55], [39.1, 0.95], [39.3, 0.52]],
+    lean: [[33.3, 0.12], [34.0, -0.04], [34.45, 0.02], [34.7, -0.12], [34.95, -0.16], [35.1, 0.06], [35.25, -0.14], [35.35, 0.05], [35.8, 0.02], [38.7, 0.05], [39.1, 0.05], [42.6, 0.04], [43.9, 0.06], [44.3, 0]],
+    armN: [[33.3, 0.62], [33.9, 0.6], [34.3, 0.75], [34.55, 2.05, ease.outQuad], [34.95, 2.35], [35.15, 1.7], [35.35, 0.9], [35.9, 0.9], [36.4, 2.45], [38.6, 2.45], [38.95, 0.9], [39.2, 0.7], [39.7, 0.6], [43.25, 0.6], [43.9, 0.3]],
+    armNCurl: [[33.3, 0.95], [33.9, 0.95], [34.3, 0.4], [34.55, -0.15], [34.95, -0.2], [35.35, 0.4], [36.4, 1.55], [38.6, 1.55], [38.95, 0.4], [39.6, 0.95], [43.25, 0.95], [43.9, 0.35]],
+    armF: [[33.3, 0.55], [33.9, 0.55], [34.3, 0.6], [34.55, 0.6], [34.95, 0.9], [35.15, 1.4], [35.35, 0.7], [35.9, 0.55], [38.8, 0.55], [39.6, 0.55], [43.25, 0.55], [43.9, 0.2]],
     head: [[33.3, 0.0], [33.9, -0.25], [34.2, 0.12], [34.5, -0.42], [34.95, -0.5], [35.3, -0.1], [35.5, 0.15], [36.0, -0.26], [37.2, -0.3], [38.2, -0.22], [38.8, 0.05], [39.3, 0.0], [42.6, -0.05], [43.1, 0.1], [43.4, 0.12]],
     mouth: [[33.3, 0.3], [34.9, 0.3], [35.0, -1], [35.5, -1], [35.7, 0.1], [37.6, 0.1], [38.1, 0.6], [42.9, 0.5], [43.5, 0.9]],
     brow: [[33.3, 0], [34.9, 0.5], [35.2, 1.5], [35.6, 0.8], [36.3, 1.2], [38.0, 0.9], [38.5, 0], [42.6, 0], [43.0, -0.4]],
@@ -129,16 +134,17 @@
     squash: [[33.3, 1], [35.3, 1], [35.36, 0.84], [35.55, 1.03], [35.75, 1]],
   };
   const poohTracks3 = {
-    // sitting in the clearing
-    lean: [[45, 0.02], [45.6, 0.02], [45.9, 0.14], [48.3, 0.12], [48.6, 0.18], [48.9, 0.06], [49.2, 0.2], [49.5, 0.2], [49.8, 0.0], [50.4, -0.03], [51.4, -0.02], [52.6, 0.04], [60, 0.04]],
-    armN: [[45, 0.5], [45.6, 0.55], [45.95, 1.15], [48.3, 1.15], [48.6, 1.05], [48.9, 0.95], [49.1, 0.6], [49.35, 0.95], [49.55, 0.9], [49.9, 2.3], [50.3, 2.3], [50.7, 0.55], [60, 0.55]],
-    armNCurl: [[45, 0.8], [45.6, 0.8], [45.95, 0.6], [48.9, 0.6], [49.35, 0.2], [49.6, 0.5], [49.9, 1.6], [50.3, 1.6], [50.7, 0.9]],
-    armF: [[45, 0.4], [45.6, 0.45], [45.95, 1.05], [48.3, 1.05], [48.9, 0.8], [49.1, 0.4], [60, 0.4]],
-    head: [[45, 0.14], [45.6, 0.16], [46.0, 0.05], [46.8, 0.14], [47.6, 0.12], [48.3, 0.02], [48.9, 0.14], [49.9, -0.06], [50.4, -0.04], [51.3, 0.02], [52.0, 0.22], [53.4, 0.24], [54.6, -0.08], [60, -0.1]],
+    // sitting in the clearing: "you first" with an open paw, then his own turn, a long bow
+    // to dip a paw in (aimed at the pot mouth in pooh()), and a lick
+    lean: [[45, 0.02], [45.6, 0.02], [45.95, 0.1], [46.45, 0.08], [46.8, 0.02], [48.8, 0.02], [49.2, 0.72], [49.45, 0.72], [49.85, 0.0], [50.4, -0.03], [51.4, -0.02], [52.6, 0.04], [60, 0.04]],
+    armN: [[45, 0.5], [45.6, 0.55], [45.95, 1.35, ease.outBack], [46.45, 1.3], [46.75, 0.55], [48.8, 0.55], [49.2, 1.0], [49.45, 1.0], [49.9, 2.3], [50.3, 2.3], [50.7, 0.55], [60, 0.55]],
+    armNCurl: [[45, 0.8], [45.6, 0.8], [45.95, -0.15], [46.45, -0.1], [46.75, 0.8], [48.8, 0.8], [49.2, 0.3], [49.45, 0.3], [49.9, 1.6], [50.3, 1.6], [50.7, 0.9]],
+    armF: [[45, 0.4], [45.6, 0.45], [45.95, 0.7], [46.45, 0.65], [46.75, 0.4], [49.0, 0.4], [49.3, 0.6], [49.8, 0.4], [60, 0.4]],
+    head: [[45, 0.14], [45.6, 0.16], [46.0, 0.05], [46.8, 0.14], [47.6, 0.12], [48.3, 0.02], [48.9, 0.1], [49.25, -0.15], [49.5, -0.12], [49.9, -0.06], [50.4, -0.04], [51.3, 0.02], [52.0, 0.22], [53.4, 0.24], [54.6, -0.08], [60, -0.1]],
     mouth: [[45, 0.5], [47.8, 0.5], [48.2, 1], [49.8, 0.8], [50.4, 1], [60, 1]],
     eye: [[45, 1], [50.2, 1]],
     brow: [[45, 0], [60, 0]],
-    lookY: [[45, 0.4], [46, 0], [46.7, 0.5], [48.9, 0.3], [49.6, 0], [52.0, 0.8], [53.4, 0.8], [54.6, -0.2], [60, -0.2]],
+    lookY: [[45, 0.4], [46, 0], [46.7, 0.5], [48.9, 0.3], [49.2, 1], [49.45, 0.8], [49.7, 0], [52.0, 0.8], [53.4, 0.8], [54.6, -0.2], [60, -0.2]],
     lookX: [[45, 0.3], [60, 0.3]],
     squash: [[45, 1], [60, 1]],
   };
@@ -179,24 +185,24 @@
     const happy = (a, b) => t > a && t < b;
     if (happy(13.05, 13.75) || happy(17.55, 18.45) || happy(43.4, 44.3) || happy(48.3, 48.9) || happy(50.2, 51.0) || happy(53.2, 55.0) || t > 56.4) P.eye = 2;
     if (t < 7.35) s.hold = 'bundle';
-    else if (potHeld(t)) s.hold = 'pot';
-    const carrying = s.hold || (potGlide(t) ? 'glide' : null);
+    else if (potInPaw(t)) s.hold = 'pot';
+    const carrying = s.hold;
 
     // walking / running cycles
-    if (t >= 9.8 && t < 10.12) {
-      const amp = 0.7 * seg(t, 9.8, 9.9) * (1 - seg(t, 10.0, 10.12));
-      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 205) / 120, amp, 0), amp, carrying));
+    if (t >= STEP[0] && t < STEP[1]) {
+      const amp = 0.7 * seg(t, STEP[0], STEP[0] + 0.12) * (1 - seg(t, STEP[1] - 0.14, STEP[1]));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - POOH_HOME) / 160, amp, 0), amp, carrying));
     }
     if (t >= RUN0 && t < RUN1 + 0.3) {
       const amp = seg(t, RUN0, RUN0 + 0.35) * (1 - seg(t, 33.35, 34.05));
-      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 222) / POOH_STRIDE + 0.1, amp, 0.85), amp, carrying));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - POOH_MEADOW) / POOH_STRIDE + 0.1, amp, 0.85), amp, carrying));
       s.z = lerp(64, 40, seg(t, RUN0, 28));
     }
     if (t >= RUN1) s.z = 40;
-    if (t >= T.walk && t < T.cut2) {
-      const amp = seg(t, T.walk, T.walk + 0.3) * (1 - seg(t, 42.2, 42.75));
-      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - poohX(T.walk)) / 115, amp, 0.05), amp, carrying));
-      s.z = lerp(40, 58, seg(t, T.walk, 42.7));
+    if (t >= POOH_WALK && t < T.cut2) {
+      const amp = seg(t, POOH_WALK, POOH_WALK + 0.3) * (1 - seg(t, 42.2, 42.75));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - poohX(POOH_WALK)) / 115, amp, 0.05), amp, carrying));
+      s.z = lerp(40, 58, seg(t, POOH_WALK, 42.7));
     }
     // tiptoe reach for the snagged cloth
     if (t > 34.35 && t < 35.0) {
@@ -214,6 +220,20 @@
       P.sit = 1;
       P.bob = Math.sin(t * 1.9) * 0.9 + (t > 50.3 && t < 50.9 ? -3 * Math.sin((t - 50.3) / 0.6 * Math.PI) : 0);
       P.legN = 0.05; P.legF = 0.12;
+    }
+    // bowing to pick up or set down the pot
+    const pe = potEvent(t);
+    if (pe) {
+      const w = bowW(pe, t);
+      for (const k in pe.pose) P[k] = lerp(P[k] ?? 0, pe.pose[k], w);
+      P.bob = lerp(P.bob || 0, 0, w);
+    }
+    // his own turn: a paw right into the pot, where it stands in front of him
+    const dip = seg(t, 49.05, 49.3) * (1 - seg(t, 49.45, 49.7));
+    if (dip > 0) {
+      const sp = CLEAR_POT, [gx, gy] = groundXY(sp.x, sp.z);
+      const k = POT_SCALE * (1 - sp.z * 0.0006);
+      P.armN = lerp(P.armN, WP.chars.reachArmN('pooh', P, toLocal(s, gx + 2 * k, gy - 60 * k)), dip);
     }
     P.earWind = clamp((wind(t) - 0.25) * 1.4, 0, 1);
     const tk = talking('pooh', t);
@@ -254,6 +274,7 @@
 
   /* ================================================================ Piglet */
 
+  const PIG_CLEARING = 4255; // sitting just clear of Pooh's bow
   function pigletX(t) {
     if (t < T.pigletOut) return 578;
     if (t < T.pigletStop) return lerp(578, 470, seg(t, T.pigletOut, T.pigletStop, ease.inOutSine));
@@ -270,7 +291,7 @@
     const x34 = pigletX(33.9999);
     if (t < T.walk + 0.15) return x34 + lerp(0, -40, seg(t, 35.6, 36.3));
     if (t < T.cut2) return x34 - 40 + 185 * (t - T.walk - 0.15) * (1 - 0.25 * seg(t, 42.2, 42.8));
-    return lerp(4225, 4170, seg(t, T.lean, T.lean + 0.9, ease.inOutSine));
+    return lerp(PIG_CLEARING, 4170, seg(t, T.lean, T.lean + 0.9, ease.inOutSine));
   }
 
   const pigTracks = {
@@ -307,7 +328,7 @@
     earF: [[45, 0], [47.9, 0], [48.1, -0.4], [48.4, 0.12], [48.6, 0], [60, 0]],
     mouth: [[45, 0.5], [47.8, 0.5], [48.0, 1], [60, 1]],
     lookY: [[45, 0.4], [46, 0.3], [46.8, 0.6], [47.5, 0], [52.2, -0.3], [60, -0.3]],
-    lean: [[45, 0], [46.7, 0], [46.9, 0.14], [47.2, 0.12], [47.5, 0], [51.3, 0], [52.2, 0.2], [60, 0.2]],
+    lean: [[45, 0], [46.55, 0], [46.9, 0.5], [47.15, 0.47], [47.5, 0.02], [51.3, 0], [52.2, 0.2], [60, 0.2]],
     squash: [[45, 1], [48.0, 1], [48.1, 0.92], [48.3, 1.03], [48.45, 1]],
     blush: [[45, 0.5], [47.9, 0.5], [48.2, 1], [60, 1]],
   };
@@ -407,6 +428,13 @@
       P.earN = lerp(P.earN, -0.9, k);
       P.earF = lerp(P.earF, -0.8, k);
     }
+    // dips a paw into the honey Pooh holds out to him
+    const dip = seg(t, 46.55, 46.85) * (1 - seg(t, 47.1, 47.4));
+    if (dip > 0) {
+      const pS = pooh(t), m = potMatrix(pot(t, pS), pS);
+      const q = m.transformPoint(new DOMPoint(12, -61));
+      P.armN = lerp(P.armN, WP.chars.reachArmN('piglet', P, toLocal(s, q.x, q.y)), dip);
+    }
     const happy = (a, b) => t > a && t < b;
     if (happy(18.2, 18.9) || happy(43.4, 44.2) || happy(48.1, 49.2) || t > 52.3) P.eye = 2;
     const tk = talking('piglet', t);
@@ -416,75 +444,155 @@
 
   /* ================================================================ the pot */
 
-  // Hand-offs: a pick glides the pot from the ground up into Pooh's paws, a place glides it
-  // back down, each over POT_GLIDE seconds, so it never jumps. [start, kind, ground spot]
-  const POT_GLIDE = 0.3;
-  const POT_MOVES = [
-    [9.55, 'pick', { x: 268, z: 22 }],
-    [10.16, 'place', { x: 312, z: 70 }],
-    [26.42, 'pick', { x: 312, z: 70 }],
-    [33.98, 'place', { x: 3232, z: 30 }],
-    [39.1, 'pick', { x: 3232, z: 30 }],
-    [42.8, 'place', null],
+  // Pooh really handles the pot. To pick it up or set it down he bows until his paw is at
+  // the pot; while he has it, it goes wherever that paw goes. Each hand-off blends a bow
+  // in over `pre` seconds, holds it for `hold` and lets it go over `post`. The pot changes
+  // hands at tc, in the middle of the hold, where paw and pot are exactly together.
+  const POT_SCALE = 0.82;
+  const POT_OFF = [-37, 60]; // pot base from the near paw while he carries it (his frame, unscaled)
+  const BOW = { lean: 0.9, armN: 0.95, armNCurl: 0.3, armF: 0.9, head: 0.1, lookY: 1 };
+  // in a hurry, and with Piglet close by, he keeps his eyes (and his head) up on the cloth
+  const BOW_UP = Object.assign({}, BOW, { head: -0.55, lookY: -0.7 });
+  // spot 'here': the pot stands wherever this first bow puts his paw
+  const POT_EVENTS = [
+    { kind: 'pick', tc: 9.55, pre: 0.42, hold: 0.08, post: 0.45, pose: BOW, spot: 'here' },
+    { kind: 'put', tc: 10.9, pre: 0.4, hold: 0.12, post: 0.4, pose: BOW },
+    { kind: 'pick', tc: 26.42, pre: 0.26, hold: 0.04, post: 0.3, pose: BOW_UP },
+    { kind: 'put', tc: 34.2, pre: 0.24, hold: 0.05, post: 0.24, pose: BOW_UP },
+    { kind: 'pick', tc: 39.36, pre: 0.3, hold: 0.06, post: 0.34, pose: BOW_UP },
+    { kind: 'put', tc: 43.25, pre: 0.4, hold: 0.1, post: 0.4, pose: BOW },
   ];
-  const potSpot = (m) => m[2] || { x: poohX(42.8) + 70, z: 40 };
-  function potHeld(t) {
+  // after the cut the pot stands on the cloth between them, where both can reach into it
+  const CLEAR_POT = { x: 4180, z: 30 };
+  /** How far into its bow Pooh is for hand-off e at time t (0..1, 1 through the hold). */
+  function bowW(e, t) {
+    const a = e.tc - e.hold / 2, b = e.tc + e.hold / 2;
+    if (t <= a - e.pre || t >= b + e.post) return 0;
+    if (t < a) return ease.inOutSine((t - a + e.pre) / e.pre);
+    if (t <= b) return 1;
+    return 1 - ease.inOutSine((t - b) / e.post);
+  }
+  const potEvent = (t) => POT_EVENTS.find((e) => t > e.tc - e.hold / 2 - e.pre && t < e.tc + e.hold / 2 + e.post) || null;
+  /** Does Pooh have the pot at time t (from a pick until the next put)? */
+  function potInPaw(t) {
     let held = false;
-    for (const m of POT_MOVES) {
-      if (t < m[0]) break;
-      held = m[1] === 'pick' ? t >= m[0] + POT_GLIDE : false;
+    for (const e of POT_EVENTS) {
+      if (t < e.tc) break;
+      held = e.kind === 'pick';
     }
     return held;
   }
-  function potGlide(t) {
-    for (const m of POT_MOVES) if (t >= m[0] && t < m[0] + POT_GLIDE) return { kind: m[1], k: (t - m[0]) / POT_GLIDE, spot: potSpot(m) };
-    return null;
+
+  // A character's own frame: origin at the feet, unscaled, x forward.
+  const poohScale = (pS) => 1 - pS.z * 0.0006;
+  /** A point in world space, in a character's own frame. */
+  function toLocal(c, wx, wy) {
+    const [px, py] = groundXY(c.x, c.z), sc = 1 - c.z * 0.0006, f = c.facing;
+    return [(wx - px) / (sc * (Math.abs(f) < 0.04 ? 0.04 * Math.sign(f || 1) : f)), (wy - py - (c.rise || 0)) / sc];
+  }
+  /** A spot on the ground (x, z), in Pooh's frame. */
+  const toPooh = (pS, x, z) => toLocal(pS, ...groundXY(x, z));
+  function fromPooh(pS, lx, ly) {
+    const [px, py] = groundXY(pS.x, pS.z), sc = poohScale(pS);
+    const gx = px + lx * sc * pS.facing, gy = py + ly * sc;
+    const z = -gy / 0.36;
+    return { x: gx - z * 0.18, z };
+  }
+  const poohPaw = (P) => WP.chars.pawAt('pooh', P);
+  /** The pot's base and angle in Pooh's frame while he holds it. */
+  function potHeldLocal(pS, t, e, w) {
+    const P = pS.pose;
+    const [px, py] = poohPaw(P);
+    // it turns with his body as he straightens up, and stands upright whenever it meets the ground
+    const a = (P.lean || 0) * (1 - w);
+    let ox = POT_OFF[0], oy = POT_OFF[1];
+    if (e && e.delta && t > e.tc) { ox += e.delta[0] * w; oy += e.delta[1] * w; }
+    const c = Math.cos(a), s = Math.sin(a);
+    return { x: px + ox * c - oy * s, y: py + ox * s + oy * c, a };
+  }
+  // Where the pot stands between hand-offs: a put leaves it where his paw set it down, and
+  // a pick finds it there (any small difference is taken up while he straightens).
+  let SPOTS = false;
+  function potSpots() {
+    if (SPOTS) return;
+    SPOTS = true;
+    let last = null;
+    for (const e of POT_EVENTS) {
+      const pS = pooh(e.tc);
+      const L = potHeldLocal(pS, e.tc, null, 1);
+      if (e.kind === 'put' || e.spot === 'here') e.spot = fromPooh(pS, L.x, L.y);
+      else {
+        e.spot = last;
+        const g = toPooh(pS, last.x, last.z);
+        e.delta = [g[0] - L.x, g[1] - L.y];
+      }
+      e.ratio = (1 - e.spot.z * 0.0006) / poohScale(pS);
+      last = e.spot;
+    }
+  }
+  /** Where the pot stands on the ground at time t (when Pooh doesn't have it). */
+  function potGround(t) {
+    potSpots();
+    if (t >= T.cut2) return { spot: CLEAR_POT, put: null };
+    let put = null;
+    for (const e of POT_EVENTS) if (e.tc <= t && e.kind === 'put') put = e;
+    return put ? { spot: put.spot, put } : { spot: POT_EVENTS[0].spot, put: null };
   }
 
-  function pot(t, pS) {
-    const gl = potGlide(t);
-    if (gl) return { glide: gl };
-    if (potHeld(t)) return { held: true };
-    if (t < 9.55) return { x: 268, z: 22, tilt: 0 };
-    if (t < 26.42) {
-      let tilt = 0;
-      if (t > T.gust + 0.12) tilt = 0.16 * wobble(t, T.gust + 0.12, 2.4, 2.2, 1) + 0.05 * wobble(t, T.gust + 0.5, 3.2, 3, 1);
-      return { x: 312, z: 70, tilt };
+  /** The pot at time t. `local` (in Pooh's frame) is set whenever he is handling it, so that
+      it is drawn with him, between his body and his near arm; otherwise it is drawn on its own. */
+  function pot(t, pS = pooh(t)) {
+    potSpots();
+    const e = potEvent(t), w = e ? bowW(e, t) : 0;
+    if (potInPaw(t)) {
+      const L = potHeldLocal(pS, t, e, w);
+      L.s = POT_SCALE * (e ? lerp(1, e.ratio, w) : 1);
+      return { held: true, local: L, e, w };
     }
-    if (t < 39.1) return { x: 3232, z: 30, tilt: 0 };
-    if (t < T.cut2) { const sp = potSpot(POT_MOVES[5]); return { x: sp.x, z: sp.z, tilt: 0 }; }
-    // the clearing: offered to Piglet, then set down in front
-    if (t < 45.7) return { x: 4142, z: 64, tilt: 0, front: true };
-    if (t < 48.6) {
-      const k = seg(t, 45.7, 46.4, ease.inOutSine) * (1 - seg(t, 48.2, 48.6, ease.inOutSine));
-      return { x: lerp(4142, 4160, k), z: 64, y: 34 * k, tilt: 0.42 * k, front: true };
+    const g = potGround(t);
+    let tilt = 0;
+    // rocking while the cloth is whisked out from under it
+    if (t > T.gust + 0.12 && t < 26.5) tilt += 0.16 * wobble(t, T.gust + 0.12, 2.4, 2.2, 1) + 0.05 * wobble(t, T.gust + 0.5, 3.2, 3, 1);
+    // settling with a little rock after being set down
+    if (g.put) tilt += 0.035 * wobble(t, g.put.tc, 3.2, 7, 1);
+    const o = { x: g.spot.x, z: g.spot.z, tilt, e, w };
+    if (e) {
+      const [lx, ly] = toPooh(pS, o.x, o.z);
+      o.local = { x: lx, y: ly, a: tilt, s: (POT_SCALE * (1 - o.z * 0.0006)) / poohScale(pS) };
     }
-    const k = seg(t, 48.6, 48.95, ease.inOutSine);
-    return { x: lerp(4142, 4142, k), z: lerp(64, 20, k), y: 10 * Math.sin(k * Math.PI), tilt: 0 };
+    return o;
   }
-
-  /** Where the pot is drawn while it glides between the ground and Pooh's paws (world matrix). */
-  function potGlideMatrix(gl, pS) {
-    const [px, py] = groundXY(pS.x, pS.z);
-    const sc = 1 - pS.z * 0.0006;
-    const hand = new DOMMatrix().translate(px, py).scale(sc * pS.facing, sc).multiply(WP.chars.poohHoldMatrix(pS.pose)).scale(0.82);
-    const [gx, gy] = groundXY(gl.spot.x, gl.spot.z);
-    const gs = 0.82 * (1 - gl.spot.z * 0.0006);
-    const e = ease.inOutSine(gl.kind === 'pick' ? gl.k : 1 - gl.k);
-    const hx = hand.e, hy = hand.f, ha = Math.atan2(hand.b, hand.a), hs = Math.hypot(hand.a, hand.b);
-    const x = lerp(gx, hx, e), y = lerp(gy, hy, e) - Math.sin(e * Math.PI) * 10;
-    return new DOMMatrix().translate(x, y).rotate((lerp(0, ha, e) * 180) / Math.PI).scale(lerp(gs, hs, e));
+  /** The pot's matrix in world space (its base at the origin). */
+  function potMatrix(pt, pS) {
+    if (pt.local) {
+      const [px, py] = groundXY(pS.x, pS.z), sc = poohScale(pS);
+      return new DOMMatrix().translate(px, py).scale(sc * pS.facing, sc)
+        .translate(pt.local.x, pt.local.y).rotate((pt.local.a * 180) / Math.PI).scale(pt.local.s);
+    }
+    const [x, y] = groundXY(pt.x, pt.z);
+    const s = POT_SCALE * (1 - pt.z * 0.0006);
+    return new DOMMatrix().translate(x, y).rotate((pt.tilt * 180) / Math.PI).scale(s);
+  }
+  /** Its shadow on the grass: full on the ground, fading and shrinking as he lifts it away. */
+  function potShadow(pt, pS) {
+    if (!pt.held) return { x: pt.x, z: pt.z, a: 0.3, lift: 0 };
+    if (!pt.e || pt.w <= 0) return null;
+    const sp = pt.e.spot, [gx, gy] = toPooh(pS, sp.x, sp.z);
+    const lift = Math.max(0, gy - pt.local.y) * poohScale(pS);
+    return { x: sp.x + (pt.local.x - gx) * poohScale(pS) * pS.facing, z: sp.z, a: 0.3 * pt.w, lift };
   }
 
   /* ================================================================ bees */
 
-  function bees(t, potWorld) {
+  function bees(t) {
     const out = [];
+    potSpots();
+    const meadowPot = POT_EVENTS[1].spot, snagPot = POT_EVENTS[3].spot;
     // two bees idle round the pot on the meadow, then are blown away by the gust
     if (t > 10.6 && t < 24.5) {
       for (let i = 0; i < 2; i++) {
         const ph = t * (1.3 + i * 0.4) + i * 2;
-        let x = 372 + Math.cos(ph) * (45 + i * 18) + noise1(t * 1.3 + i * 9) * 15;
+        let x = meadowPot.x + 60 + Math.cos(ph) * (45 + i * 18) + noise1(t * 1.3 + i * 9) * 15;
         let y = -95 - Math.sin(ph * 1.6) * 30 + noise1(t * 1.7 + i) * 12 - i * 30;
         const enter = seg(t, 10.6 + i * 1.2, 12 + i * 1.2);
         x = lerp(-250 + i * 60, x, enter);
@@ -499,26 +607,25 @@
         out.push({ x, y, z: 70, rot, seed: i });
       }
     }
-    // the bees come back — with friends — and follow the honey
+    // the bees come back — with friends — and follow the honey; while it stands by the gorse
+    // they circle it, and when Pooh picks it up again they follow on. They keep just behind
+    // Pooh and the pot all the way, so nothing changes places when he picks it up.
     if (t > 29.4 && t < 45) {
+      const circling = seg(t, 34.0, 34.9) * (1 - seg(t, 39.2, 40.0));
       for (let i = 0; i < 5; i++) {
         const lag = 0.5 + i * 0.28;
         const tt = t - lag;
-        let x, y;
-        if (t < 34.2) {
-          x = poohX(tt) - 60 - i * 34 + noise1(t * 2 + i * 5) * 26;
-          y = -150 - i * 14 + noise1(t * 2.4 + i * 3) * 30 + Math.sin(t * 8 + i) * 6;
-        } else if (t < 39.1) {
-          // circling the pot where Pooh set it down, low and to his left
-          x = 3190 + Math.cos(t * (1.8 + i * 0.3) + i) * (45 + i * 12);
-          y = -60 - Math.sin(t * (2.3 + i * 0.2) + i) * 22 - i * 9;
-        } else {
-          x = poohX(tt) - 60 - i * 34 + noise1(t * 2 + i * 5) * 26;
-          y = -150 - i * 12 + noise1(t * 2.4 + i * 3) * 26;
+        let x = poohX(tt) - 60 - i * 34 + noise1(t * 2 + i * 5) * 26;
+        let y = -150 - i * 13 + noise1(t * 2.4 + i * 3) * 28 + Math.sin(t * 8 + i) * 6;
+        if (circling > 0) {
+          const cx = snagPot.x + Math.cos(t * (1.8 + i * 0.3) + i) * (45 + i * 12);
+          const cy = -60 - Math.sin(t * (2.3 + i * 0.2) + i) * 22 - i * 9;
+          x = lerp(x, cx, circling);
+          y = lerp(y, cy, circling);
         }
         const enter = seg(t, 29.4 + i * 0.15, 30.3 + i * 0.15);
         x = lerp(x - 900, x, enter);
-        out.push({ x, y, z: 40, rot: noise1(t * 3 + i) * 0.3, seed: i + 3 });
+        out.push({ x, y, z: 45, rot: noise1(t * 3 + i) * 0.3, seed: i + 3 });
       }
     }
     if (t >= 45) {
@@ -848,11 +955,8 @@
     // ground contact shadows (on the scene, beneath the cut-outs)
     contactShadow(ctx, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
     if (!gS.rise || gS.rise < 40) contactShadow(ctx, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
-    if (!pt.held && !pt.glide) contactShadow(ctx, pt.x, pt.z, 36, 0.3, pt.y || 0);
-    if (pt.glide) {
-      const e = ease.inOutSine(pt.glide.kind === 'pick' ? pt.glide.k : 1 - pt.glide.k);
-      contactShadow(ctx, pt.glide.spot.x, pt.glide.spot.z, 36, 0.3 * (1 - e), 40 * e);
-    }
+    const psh = potShadow(pt, pS);
+    if (psh) contactShadow(ctx, psh.x, psh.z, 36, psh.a, psh.lift);
     if (G && clothUp < 400) {
       const cx = G[Math.floor(G.length / 2)];
       contactShadow(ctx, cx[0], cx[2], 170, 0.22 * clamp(1 - clothUp / 400), cx[1]);
@@ -874,15 +978,18 @@
       a.globalCompositeOperation = 'source-atop';
       contactShadow(a, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
       if (!gS.rise || gS.rise < 40) contactShadow(a, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
-      if (!pt.held && !pt.glide) contactShadow(a, pt.x, pt.z, 36, 0.3, pt.y || 0);
+      if (psh) contactShadow(a, psh.x, psh.z, 36, psh.a, psh.lift);
       a.restore();
       // ...and the parts off the ground are sorted with the characters by depth
       for (const it of CP.items) items.push(it);
     }
-    const holdPot = (scale = 0.82) => (g) => {
+    // while Pooh handles the pot it is drawn with him (the hold callback runs in his body frame)
+    const holdPot = (pose) => (g) => {
+      const L = pt.local;
+      const m = WP.chars.poohBodyMatrix(pose).inverse()
+        .translate(L.x, L.y).rotate((L.a * 180) / Math.PI).scale(L.s);
       g.save();
-      g.translate(36, -28);
-      g.scale(scale, scale);
+      g.transform(m.a, m.b, m.c, m.d, m.e, m.f);
       drawPot(g, {});
       g.restore();
     };
@@ -903,7 +1010,7 @@
       const sc = 1 - pS.z * 0.0006;
       a.scale(sc * pS.facing, sc);
       const pose = Object.assign({}, pS.pose);
-      if (pS.hold === 'pot') { pose.hold = 'front'; pose.holdFn = holdPot(); }
+      if (pt.local) { pose.hold = 'front'; pose.holdFn = holdPot(pose); }
       if (pS.hold === 'bundle') { pose.hold = 'front'; pose.holdFn = bundle; }
       drawPooh(a, pose);
       a.restore();
@@ -922,19 +1029,11 @@
       drawPiglet(a, gS.pose);
       a.restore();
     } });
-    if (pt.glide) items.push({ z: pS.z - 0.5, draw: () => {
+    if (!pt.local) items.push({ z: pt.z + 0.5, draw: () => {
+      const m = potMatrix(pt, pS);
       a.save();
-      a.transform(...(() => { const m = potGlideMatrix(pt.glide, pS); return [m.a, m.b, m.c, m.d, m.e, m.f]; })());
+      a.transform(m.a, m.b, m.c, m.d, m.e, m.f);
       drawPot(a, {});
-      a.restore();
-    } });
-    if (!pt.held && !pt.glide) items.push({ z: pt.front ? pS.z - 0.5 : pt.z + 0.5, draw: () => {
-      const [px, py] = groundXY(pt.x, pt.z, pt.y || 0);
-      a.save();
-      a.translate(px, py);
-      const sc = 0.82 * (1 - pt.z * 0.0006);
-      a.scale(sc, sc);
-      drawPot(a, { tilt: pt.tilt });
       a.restore();
     } });
     // bees and the grass in front of the path join the same depth order
@@ -1018,11 +1117,10 @@
       x1 = Math.max(x1, xf.ox + wx1 * xf.z); y1 = Math.max(y1, xf.oy + wy1 * xf.z);
     };
     let [px, py] = groundXY(pS.x, pS.z);
-    add(px - 190, py - 420, px + 190, py + 40);
+    add(px - 230, py - 420, px + 230, py + 40);
     [px, py] = groundXY(gS.x, gS.z);
     add(px - 120, py - 300, px + 120, py + 40);
-    if (!pt.held && !pt.glide) { [px, py] = groundXY(pt.x, pt.z, pt.y || 0); add(px - 70, py - 110, px + 70, py + 20); }
-    if (pt.glide) { [px, py] = groundXY(pt.glide.spot.x, pt.glide.spot.z); add(px - 70, py - 110, px + 70, py + 20); }
+    if (!pt.held) { [px, py] = groundXY(pt.x, pt.z); add(px - 70, py - 110, px + 70, py + 20); }
     if (G) for (const v of G) { const [cx, cy] = CL.proj(v[0], v[1], v[2]); add(cx - 12, cy - 12, cx + 12, cy + 12); }
     for (const b of bees(t)) { const [bx, by] = groundXY(b.x, b.z, -b.y); add(bx - 20, by - 20, bx + 20, by + 20); }
     for (const it of A.L.groundFront) {
@@ -1554,10 +1652,11 @@
         prev = ph;
       }
     };
-    steps('pooh', (t) => (poohX(t) - 222) / POOH_STRIDE + 0.1, RUN0 + 0.15, 33.95, POOH_STRIDE);
+    steps('pooh', (t) => (poohX(t) - POOH_MEADOW) / POOH_STRIDE + 0.1, RUN0 + 0.15, 33.95, POOH_STRIDE);
     steps('piglet', (t) => (pigletX(t) - 470) / PIG_RUN, 26.95, 33.95, PIG_RUN);
     steps('piglet', (t) => (578 - pigletX(t)) / 60, T.pigletOut + 0.1, T.pigletStop, 60);
-    steps('pooh', (t) => (poohX(t) - poohX(T.walk)) / 115, T.walk + 0.2, 42.6, 115);
+    steps('pooh', (t) => (poohX(t) - poohX(POOH_WALK)) / 115, POOH_WALK + 0.2, 42.6, 115);
+    steps('pooh', (t) => (poohX(t) - POOH_HOME) / 160, STEP[0] + 0.1, STEP[1] - 0.05, 160);
     steps('piglet', (t) => (pigletX(t) - pigletX(T.walk + 0.15)) / PIG_WALK, T.walk + 0.3, 42.7, PIG_WALK);
     ev.sort((a, b) => a.t - b.t);
     // wind strength, bee positions on screen and the cloth's screen position (20 Hz) for panning
@@ -1577,21 +1676,21 @@
         clothOnScreen.push([+((xf.ox + cx * xf.z) / W).toFixed(3), +((xf.oy + cy * xf.z) / H).toFixed(3), +c[1].toFixed(1)]);
       } else clothOnScreen.push(null);
     }
-    return { T, events: ev, wind100, beesOnScreen, clothOnScreen };
+    // the pot's hand-offs: the moment paw and pot meet
+    const pot = POT_EVENTS.map((e) => ({ kind: e.kind, t: e.tc }));
+    return { T, events: ev, pot, wind100, beesOnScreen, clothOnScreen };
   }
 
   /** The pot's base in world space at time t, however it is being carried (for checks). */
   function potWorld(t) {
-    const pS = pooh(t), pt = pot(t, pS);
-    if (pt.glide) { const m = potGlideMatrix(pt.glide, pS); return [m.e, m.f]; }
-    if (pt.held) {
-      const [px, py] = groundXY(pS.x, pS.z);
-      const sc = 1 - pS.z * 0.0006;
-      const m = new DOMMatrix().translate(px, py).scale(sc * pS.facing, sc).multiply(WP.chars.poohHoldMatrix(pS.pose));
-      return [m.e, m.f];
-    }
-    return groundXY(pt.x, pt.z, pt.y || 0);
+    const pS = pooh(t), m = potMatrix(pot(t, pS), pS);
+    return [m.e, m.f];
+  }
+  /** Pooh's near paw in world space (for checks). */
+  function poohPawWorld(t) {
+    const pS = pooh(t), [lx, ly] = poohPaw(pS.pose), [px, py] = groundXY(pS.x, pS.z), sc = poohScale(pS);
+    return [px + lx * sc * pS.facing, py + ly * sc];
   }
 
-  WP.film = { PROF, init, render, camera, wind, pooh, piglet, pot, potWorld, soundEvents, T, DUR, W, H };
+  WP.film = { PROF, init, render, camera, wind, pooh, piglet, pot, potWorld, poohPawWorld, POT_EVENTS, soundEvents, T, DUR, W, H };
 })();

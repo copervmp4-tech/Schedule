@@ -562,16 +562,48 @@
     return 0;
   }
 
-  /** Matrix from Pooh's feet to the point where he holds the pot (the pot's base), for this pose. */
-  function poohHoldMatrix(pose0) {
+  /** Pooh's body frame (hips, lean, squash) as a matrix from his feet, for this pose. */
+  function poohBodyMatrix(pose0) {
     const pose = Object.assign({}, POOH_DEFAULT, pose0);
     const hipY = lerp(-56, -20, pose.sit);
     return new DOMMatrix()
       .translate(0, hipY + pose.bob)
       .rotate((pose.lean * 180) / Math.PI)
-      .scale(1 / Math.sqrt(pose.squash), pose.squash)
-      .translate(36, -28);
+      .scale(1 / Math.sqrt(pose.squash), pose.squash);
+  }
+  /** Piglet's body frame as a matrix from his feet, for this pose. */
+  function pigletBodyMatrix(pose0) {
+    const pose = Object.assign({}, PIGLET_DEFAULT, pose0);
+    const hipY = lerp(-20, -9, pose.sit);
+    return new DOMMatrix()
+      .translate(0, hipY + pose.bob)
+      .rotate((pose.lean * 180) / Math.PI)
+      .scale(1 / Math.sqrt(pose.squash), pose.squash);
   }
 
-  WP.chars = { drawPooh, drawPiglet, walkCycle, blinkAt, tube, poohHoldMatrix };
+  // near arms: shoulder in the body frame, and the paw end of the arm for a curl
+  const ARMS = {
+    pooh: { shoulder: [20, -122], end: (c) => tube(66, 34, 27, q(c, 0.04), 10, 0.6).end, body: poohBodyMatrix, dflt: POOH_DEFAULT },
+    piglet: { shoulder: [15, -64], end: (c) => tube(38, 7, 5.6, q(c, 0.04), 8, 0.9).end, body: pigletBodyMatrix, dflt: PIGLET_DEFAULT },
+  };
+  /** The near-arm angle (armN) that points the paw at a target given in the character's feet
+      frame; with the body leaning in far enough, the paw lands right on it. */
+  function reachArmN(who, pose0, target) {
+    const A = ARMS[who], pose = Object.assign({}, A.dflt, pose0);
+    const tb = A.body(pose).inverse().transformPoint(new DOMPoint(target[0], target[1]));
+    const e = A.end(pose.armNCurl);
+    let a = Math.atan2(e[1], e[0]) - Math.atan2(tb.y - A.shoulder[1], tb.x - A.shoulder[0]);
+    while (a - pose.armN > Math.PI) a -= TAU;
+    while (a - pose.armN < -Math.PI) a += TAU;
+    return a;
+  }
+  /** Where a character's near paw is, in their feet frame. */
+  function pawAt(who, pose0) {
+    const A = ARMS[who], pose = Object.assign({}, A.dflt, pose0);
+    const r = rot(A.end(pose.armNCurl), -pose.armN);
+    const p = A.body(pose).transformPoint(new DOMPoint(A.shoulder[0] + r[0], A.shoulder[1] + r[1]));
+    return [p.x, p.y];
+  }
+
+  WP.chars = { drawPooh, drawPiglet, walkCycle, blinkAt, tube, poohBodyMatrix, pigletBodyMatrix, reachArmN, pawAt };
 })();

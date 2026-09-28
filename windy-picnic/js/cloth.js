@@ -12,7 +12,7 @@
 
   const NU = 13, NV = 9;
   const W = 300, D = 170;
-  const MEADOW = { x: 380, z: 70 };
+  const MEADOW = { x: 450, z: 70 };
   const CLEARING = { x: 4150, z: 62 };
   const SNAG = { x: 3395, y: 150, z: 70 };
 
@@ -28,9 +28,10 @@
   function flat(c, t, ripple = 0, lift = 0) {
     return grid((u, v) => {
       let y = 0;
-      if (ripple) y += ripple * Math.max(0, Math.sin(u * 7 - t * 9 + v * 2)) * (1 - u) * 0.8;
+      // the breeze plays with the far (right) side, away from the pot and from Piglet's feet
+      if (ripple) y += ripple * Math.max(0, Math.sin(u * 7 - t * 9 + v * 2)) * u * 0.8;
       if (lift) {
-        const k = Math.pow(1 - u, 2.2) * (1 - 0.35 * v);
+        const k = Math.pow(smooth(clamp((u - 0.55) / 0.45)), 1.5) * (0.6 + 0.4 * v);
         y += lift * k * (0.75 + 0.25 * Math.sin(t * 17 - u * 9 + v * 3));
       }
       return [c.x + (u - 0.5) * W, y, c.z + (v - 0.5) * D];
@@ -85,7 +86,7 @@
     [23.05, [MEADOW.x, 0, MEADOW.z]],
     [23.4, [MEADOW.x + 240, 60, MEADOW.z - 10], ease.inQuad],
     [24.2, [MEADOW.x + 560, 330, MEADOW.z - 30], ease.linear],
-    [25.2, [MEADOW.x + 1050, 720, MEADOW.z - 40], ease.outQuad],
+    [25.2, [1430, 720, MEADOW.z - 40], ease.outQuad],
     [26.8, [1420, 330, 40], ease.inOutSine],
     [28.4, [1850, 280, 50], ease.inOutSine],
     [29.7, [2250, 330, 40], ease.inOutSine],
@@ -109,7 +110,7 @@
     // shaken out (7.35–9.25): springs open above the grass, domes on air, floats down
     if (t < 9.8) {
       const s = invLerp(7.35, 9.25, t);
-      const c0 = [278, 199, MEADOW.z - 20]; // where the folded bundle is when Pooh flings it
+      const c0 = [258, 199, MEADOW.z - 20]; // where the folded bundle is when Pooh flings it
       const c1 = [MEADOW.x - 10, 175, MEADOW.z];
       const c2 = [MEADOW.x, 0, MEADOW.z];
       const k1 = ease.outCubic(clamp(s / 0.35));
