@@ -1,27 +1,37 @@
 /* The Windy Picnic — Pooh and Piglet, after E. H. Shepard's 1926 drawings.
 
-   Both are drawn as articulated stuffed toys in a three-quarter view facing
-   right (the caller flips them to face left). Units are pixels at scale 1 with
-   the origin at the feet; Pooh stands about 290 high, Piglet about 160.
+   Both are articulated stuffed toys in a three-quarter view facing right (the
+   caller flips them to face left). Units are pixels at scale 1, origin at the
+   feet; Pooh stands about 290 high, Piglet about 165. Proportions were measured
+   from the 1926 plates (figure height = 1):
 
-   Pooh (1926): an unclothed teddy bear — a round head with a short blunt
-   muzzle and a dark oval nose, a dot of an eye under a little brow, two small
-   round ears set high, no neck, a long pear-shaped tummy, soft tube arms
-   without elbows and short stubby legs.
+   Pooh — ears ≈0.12 across, set on top of a broad head that fills the top third;
+   head and body share one back line (no neck), the chin shows only as a jaw
+   line across the chest; a short blunt muzzle with the nose at its tip and a dot
+   of an eye right at its root; a pear-shaped tummy that leans back and sits over
+   short round legs; short thick arms starting just under the jaw.
 
-   Piglet (1926): a Very Small Animal with a large head, a short tapering snout,
-   pointed upright ears, thin bare arms, very short legs, and a long
-   horizontally striped knitted jumper. */
+   Piglet — a head wider than tall (≈1.45 : 1) tapering to a level snout with a
+   flat end, the eye at the snout's root; big leaf-shaped ears, the far one
+   often flopped out sideways; a barrel of a knitted jumper about half his
+   height, striped almost black; thin bare arms; very short legs.
+
+   The drawing is line-led like the book: pale paper tint, a bold broken pen
+   outline pressed harder on the shadowed side, and hatching that follows the
+   form. */
 (function () {
   const WP = window.WP;
   const { spline, pathFrom, PAL, lerp, clamp, TAU, rgba } = WP;
   const ink = WP.ink;
 
+  const TINT = { pooh: ['#d9a95f', 0.1], piglet: ['#ecb9a0', 0.2] };
+  const BASE = '#fbf6ea'; // the figures are a shade lighter than the page, as in the book
+
   /* ------------------------------------------------------------ helpers */
 
   function shape(pts, per = 7) {
     const P = spline(pts, true, per);
-    return { P, path: pathFrom(P) };
+    return { P, path: pathFrom(P), per, n: pts.length, cum: null };
   }
   function bbox(P) {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -33,12 +43,24 @@
     }
     return [x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 4];
   }
+  /** Fraction of the outline's length at control point i (splines sample `per` points per segment). */
+  function fracAt(S, i) {
+    const P = S.P;
+    if (!S.cum) {
+      S.cum = [0];
+      for (let k = 1; k <= P.length; k++) S.cum.push(S.cum[k - 1] + Math.hypot(P[k % P.length][0] - P[k - 1][0], P[k % P.length][1] - P[k - 1][1]));
+    }
+    return S.cum[Math.min(P.length, Math.round(i * S.per))] / S.cum[P.length];
+  }
+  const rot = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
+  const scaleV = (v, k) => [v[0] * k, v[1] * k];
 
   /**
    * Soft tube (arm) along a bent centre line: starts at the pivot heading
-   * straight down, curls forward by `curl` along its length.
+   * straight down and curls forward by `curl` along its length. The shoulder
+   * end is rounded too, so it stays inside the body whatever the angle.
    */
-  function tube(len, w0, w1, curl, n = 10) {
+  function tube(len, w0, w1, curl, n = 10, paw = 0.56) {
     const C = [];
     let x = 0, y = 0, a = Math.PI / 2;
     const ds = len / n;
@@ -55,66 +77,116 @@
       const d = Math.hypot(dx, dy) || 1;
       dx /= d; dy /= d;
       const u = i / n;
-      const w = lerp(w0, w1, u) * (1 + 0.06 * Math.sin(u * Math.PI)) * 0.5;
+      const w = lerp(w0, w1, u) * (1 + 0.05 * Math.sin(u * Math.PI)) * 0.5;
       L.push([p[0] - dy * w, p[1] + dx * w]);
       R.push([p[0] + dy * w, p[1] - dx * w]);
     }
-    // rounded paw at the end
     const e = C[n], pe = C[n - 1];
     const ang = Math.atan2(e[1] - pe[1], e[0] - pe[0]);
     const cap = [];
     for (let k = 1; k < 6; k++) {
       const a2 = ang + Math.PI / 2 - (k / 6) * Math.PI;
-      cap.push([e[0] + Math.cos(a2) * w1 * 0.52, e[1] + Math.sin(a2) * w1 * 0.52]);
+      cap.push([e[0] + Math.cos(a2) * w1 * paw, e[1] + Math.sin(a2) * w1 * paw]);
     }
-    const pts = L.concat(cap, R.reverse());
-    return { pts, end: e, dir: ang };
+    const top = [[0, -w0 * 0.35]];
+    const pts = L.concat(cap, R.reverse(), top);
+    return { pts, end: e, dir: ang, nL: L.length, nCap: cap.length };
   }
 
-  /** Paint one soft-toy part: paper, tint (slightly off-register), hatched shadow, pen outline. */
-  function paint(ctx, P, path, st) {
-    ctx.fillStyle = st.base ?? PAL.paperLight;
+  /**
+   * Paint one soft-toy part: paper, a pale tint, hatching on the shadowed side
+   * (following the form), then the pen outline, pressed harder away from the light.
+   *   st.shade  [dx,dy]  light offset in this part's frame (crescent width)
+   *   st.open   [i0,i1]  control-point range left un-inked (where a part joins another)
+   */
+  function paint(ctx, S, st) {
+    const { P, path } = S;
+    const seed = st.seed ?? 1;
+    ctx.fillStyle = st.base ?? BASE;
     ctx.fill(path);
-    if (st.wash) {
-      ctx.save();
-      // watercolour laid a touch off the ink line, as a colourist would
-      // (no offset on limbs, whose joins would show a paper-white sliver)
-      const reg = st.open ? [0, 0] : st.reg ?? [1.2, 1];
-      ctx.translate(reg[0], reg[1]);
-      ink.wash(ctx, path, st.wash, { alpha: st.washA ?? 0.34, edge: st.edge ?? 0.55, edgeW: st.edgeW ?? 7, texAlpha: 0.5 });
-      ctx.restore();
-    }
+    if (st.tint) ink.wash(ctx, path, st.tint[0], { alpha: st.tint[1], edge: st.edge ?? 0.35, edgeW: 6, texAlpha: 0.4 });
+    const bb = bbox(P);
     if (st.shade) {
-      const [dx, dy] = st.shade;
-      ink.shadeCrescent(ctx, path, bbox(P), dx, dy, {
-        angle: st.hAngle ?? -1.0, spacing: st.hSp ?? 3.6, w: st.hW ?? 0.85, alpha: st.hA ?? 0.62,
-        seed: st.seed ?? 1, color: PAL.ink, wash: st.shadeWash ?? PAL.sepia, washAlpha: st.shadeWashA ?? 0.12, minLen: 0.1, lenVar: 0.45, bend: 1.5, cross: st.cross ?? 0,
+      const l = Math.hypot(st.shade[0], st.shade[1]) || 1;
+      const size = Math.min(bb[2], bb[3]);
+      ink.edgeHatch(ctx, P, path, {
+        dir: [-st.shade[0] / l, -st.shade[1] / l], angle: st.hAngle ?? -1.35, spacing: st.hSp ?? 2.6,
+        depth: st.hDepth ?? size * 0.25, len: st.hLen ?? size * 0.4, w: st.hW ?? 0.95, alpha: st.hA ?? 0.8,
+        seed, color: PAL.ink, cross: st.cross ?? 0, wash: PAL.sepia, washAlpha: st.shadeWashA ?? 0.1, threshold: st.hThr ?? 0.08,
       });
     }
-    if (st.outline !== false) {
-      const o = { w: (st.lw ?? 2.6) * 0.92, seed: st.seed ?? 1, breaks: st.breaks ?? 4, wobble: st.wob ?? 0.9, press: 0.55, gap: 0.01, color: PAL.ink };
-      if (st.open) {
-        // `open` = [from, to] fraction of the outline to leave un-inked (where a limb joins the body)
-        const [a, b] = st.open;
-        ink.stroke(ctx, ink.slice(P, b, 1 + a, true), { ...o, taper: [0.06, 0.06] });
-      } else ink.outline(ctx, P, o);
+    if (st.inside) st.inside(S);
+    if (st.outline === false) return;
+    let heavy = null;
+    if (st.shade) {
+      const l = Math.hypot(st.shade[0], st.shade[1]) || 1;
+      heavy = { cx: bb[0] + bb[2] / 2, cy: bb[1] + bb[3] / 2, dx: -st.shade[0] / l, dy: -st.shade[1] / l, k: st.heavy ?? 0.85 };
     }
-    if (st.fur) for (const f of st.fur) ink.ticks(ctx, P, { from: f[0], to: f[1], density: f[2] ?? 0.1, len: f[3] ?? 4, w: 1.15, seed: (st.seed ?? 1) + f[0] * 10, side: -1, prob: 0.75, lean: 0.9 });
+    const o = { w: st.lw ?? 3, seed, breaks: st.breaks ?? 3, wobble: st.wob ?? 1.0, press: 0.6, gap: 0.012, color: PAL.ink, heavy, minTip: 0.12 };
+    if (st.open) {
+      const [a, b] = st.open;
+      const fA = fracAt(S, a), fB = fracAt(S, b % S.n) + (b >= S.n ? 1 : 0);
+      ink.stroke(ctx, ink.slice(P, fB, fA + 1, true), { ...o, taper: [0.07, 0.07] });
+    } else ink.outline(ctx, P, o);
+    if (st.fur) for (const f of st.fur) ink.ticks(ctx, P, { from: f[0], to: f[1], density: f[2] ?? 0.1, len: f[3] ?? 4, w: 1.2, seed: seed + f[0] * 10, side: -1, prob: 0.7, lean: 0.9 });
   }
   function part(ctx, pts, st, per = 7) {
     const S = shape(pts, per);
-    paint(ctx, S.P, S.path, st);
+    paint(ctx, S, st);
     return S;
   }
 
-  function at(ctx, x, y, rot, fn, sx = 1, sy = 1) {
+  function at(ctx, x, y, r, fn) {
     ctx.save();
     ctx.translate(x, y);
-    if (rot) ctx.rotate(rot);
-    if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
+    if (r) ctx.rotate(r);
     fn();
     ctx.restore();
   }
+
+  /** Hatched shadow a head casts on the chest just under the jaw (clipped by the caller to the body). */
+  function castUnder(ctx, S, dx, dy, o) {
+    const moved = new Path2D();
+    moved.addPath(S.path, new DOMMatrix([1, 0, 0, 1, dx, dy]));
+    const both = new Path2D();
+    both.addPath(S.path);
+    both.addPath(S.path, new DOMMatrix([1, 0, 0, 1, dx, dy]));
+    ctx.save();
+    ctx.clip(moved);
+    ctx.clip(both, 'evenodd');
+    if (o.rect) {
+      const r = new Path2D();
+      r.rect(...o.rect);
+      ctx.clip(r);
+    }
+    ctx.globalAlpha *= 0.14;
+    ctx.fillStyle = PAL.sepia;
+    ctx.fill(moved);
+    ctx.globalAlpha /= 0.14;
+    ink.hatch(ctx, bbox(S.P).map((v, i) => (i < 2 ? v - 20 : v + 40)), { angle: o.angle ?? -1.25, spacing: o.spacing ?? 2.8, w: o.w ?? 0.9, alpha: o.alpha ?? 0.75, seed: o.seed ?? 9, minLen: 0.05, lenVar: 0.2 });
+    ctx.restore();
+  }
+
+  /** Hatched shadow that the outline `pts` casts (offset dx,dy) onto whatever is clipped. */
+  function castFrom(ctx, pts, dx, dy, o = {}) {
+    const S = shape(pts, 3);
+    const moved = new Path2D();
+    moved.addPath(S.path, new DOMMatrix([1, 0, 0, 1, dx, dy]));
+    const both = new Path2D();
+    both.addPath(S.path);
+    both.addPath(moved);
+    ctx.save();
+    ctx.clip(moved);
+    ctx.clip(both, 'evenodd');
+    ctx.globalAlpha *= 0.1;
+    ctx.fillStyle = PAL.sepia;
+    ctx.fill(moved);
+    ctx.globalAlpha /= 0.1;
+    const bb = bbox(S.P);
+    ink.hatch(ctx, [bb[0] - 10, bb[1] - 10, bb[2] + 20 + Math.abs(dx), bb[3] + 20 + Math.abs(dy)], { angle: o.angle ?? -1.4, spacing: o.spacing ?? 2.2, w: o.w ?? 1.1, alpha: o.alpha ?? 0.8, seed: o.seed ?? 5, minLen: 0.2, lenVar: 0.6 });
+    ctx.restore();
+  }
+  const xform = (pts, x, y, a) => pts.map((p) => { const q = rot(p, a); return [q[0] + x, q[1] + y]; });
 
   /* ------------------------------------------------------------ Pooh */
 
@@ -126,119 +198,135 @@
   };
 
   const POOH = {
-    // legs hang from inside the body; foot turns forward
-    leg: [[-18, -14], [18, -14], [20, 18], [22, 34], [31, 40], [33, 48], [24, 52], [-12, 52], [-21, 44], [-20, 16]],
-    legSit: [[-18, -14], [18, -14], [20, 18], [22, 34], [30, 40], [30, 48], [22, 52], [-12, 52], [-21, 44], [-20, 16]],
-    body: [[-48, 6], [-12, 16], [28, 12], [50, -10], [57, -46], [50, -84], [34, -112], [14, -128], [-20, -128], [-40, -110], [-50, -76], [-54, -38], [-54, -8]],
-    head: [[0, -95], [24, -90], [40, -76], [46, -63], [50, -57], [57, -54], [62, -47], [61, -38], [55, -32], [47, -27], [39, -15], [26, -4], [4, 0], [-22, -4], [-40, -18], [-47, -42], [-42, -70], [-26, -89]],
-    ear: [[-13, 5], [-15, -6], [-10, -15], [0, -18], [10, -15], [15, -6], [13, 5]],
+    // hip frame (origin between the hips). The back rises straight up into the head; the
+    // tummy leans forward and overhangs the tops of the legs.
+    body: [[-28, 10], [-6, 17], [17, 10], [37, -12], [51, -38], [56, -64], [52, -92], [40, -114], [25, -130], [8, -152], [-20, -164], [-41, -154], [-46, -128], [-48, -100], [-49, -68], [-46, -34], [-39, -6]],
+    // head frame (origin at the neck, under the middle of the jaw)
+    head: [[-14, 3], [6, 1], [22, -6], [34, -13], [43, -21], [49, -28], [53, -36], [51, -44], [44, -49], [38, -53], [33, -62], [25, -73], [12, -81], [-5, -85], [-22, -81], [-35, -70], [-43, -53], [-45, -33], [-44, -14], [-35, -1]],
+    // leg frame (origin at the hip joint); the foot turns forward
+    leg: [[-16, -18], [16, -18], [17, 16], [20, 30], [29, 37], [35, 44], [33, 52], [21, 56], [-8, 56], [-17, 50], [-18, 16]],
+    ear: [[-12, 8], [-16, -2], [-14, -12], [-6, -17], [4, -17], [12, -12], [16, -2], [12, 8]],
+    neckY: -132,
   };
 
-  function poohEar(ctx, x, y, rot, wind, t, seed) {
-    at(ctx, x, y, rot + wind * 0.22 * Math.sin(t * 19 + seed), () => {
-      part(ctx, POOH.ear, { wash: PAL.poohFur, washA: 0.42, lw: 2.3, seed, breaks: 2, open: [0.86, 1.0] });
-      ink.line(ctx, [[-6, 1], [-6, -7], [0, -11], [6, -7], [6, 1]], { w: 1.2, seed: seed + 2, taper: [0.3, 0.3], alpha: 0.7 });
+  function poohEar(ctx, x, y, r, wind, t, seed, shade) {
+    at(ctx, x, y, r + wind * 0.2 * Math.sin(t * 19 + seed), () => {
+      part(ctx, POOH.ear, { tint: TINT.pooh, lw: 3.1, seed, open: [7, 8], shade: shade, hDepth: 6, hLen: 9, hSp: 2.8, hA: 0.7, hAngle: -0.9 });
+      // the cup of the ear
+      ink.line(ctx, [[-8, 4], [-9, -5], [-3, -10], [4, -9], [8, -3]], { w: 1.5, seed: seed + 2, taper: [0.3, 0.4], alpha: 0.85 });
     });
   }
 
   function poohArm(ctx, pose, near, seed) {
-    const tb = tube(74, 31, 25, near ? pose.armNCurl : pose.armFCurl);
-    part(ctx, tb.pts, { wash: PAL.poohFur, washA: 0.36, lw: 2.5, seed, breaks: 3, shade: pose.shade, hSp: 3.8, open: [0.955, 1.0], fur: near ? [[0.05, 0.3, 0.1, 3.5]] : null }, 3);
+    const a = near ? pose.armN : pose.armF;
+    const tb = tube(66, 34, 27, near ? pose.armNCurl : pose.armFCurl, 10, 0.6);
+    const S = shape(tb.pts, 3);
+    const top = tb.pts.length - 1;
+    paint(ctx, S, {
+      tint: TINT.pooh, lw: 3.2, seed, shade: rot(pose.shade, a), hAngle: 1.45, hSp: 2.2, hW: 1.05, hDepth: 11, hLen: 24,
+      open: [top - 1, top + 2],
+    });
     return tb;
   }
 
-  function poohLeg(ctx, pose, near, seed) {
-    part(ctx, pose.sit > 0.5 ? POOH.legSit : POOH.leg, { wash: PAL.poohFur, washA: 0.36, lw: 2.7, seed, breaks: 3, shade: pose.shade, hSp: 3.8, open: [0.0, 0.1] });
+  function poohLeg(ctx, pose, near, seed, r) {
+    const S = part(ctx, POOH.leg, { tint: TINT.pooh, lw: 3.4, seed, shade: rot(pose.shade, -r), hAngle: 1.5, hSp: 2.2, hW: 1.05, hDepth: 12, hLen: 22, open: [0, 1] });
     if (pose.sit > 0.5 && near) {
       // the sole shows when the legs stick out in front
-      at(ctx, 26, 43, -0.15, () => {
-        const pad = shape(WP.ellipsePts(0, 0, 6, 9, 10));
-        paint(ctx, pad.P, pad.path, { wash: PAL.honey, washA: 0.3, lw: 1.5, seed: seed + 5, breaks: 1, edge: 0 });
+      at(ctx, 8, 51, 0, () => {
+        part(ctx, WP.ellipsePts(0, 0, 13, 5, 10), { tint: [PAL.honey, 0.25], lw: 1.6, seed: seed + 5, breaks: 1, edge: 0 });
       });
     }
+    return S;
   }
 
   function drawPooh(ctx, pose0) {
     const pose = Object.assign({}, POOH_DEFAULT, pose0);
     const t = pose.t;
+    const sh = pose.shade;
     ctx.save();
     ctx.lineJoin = 'round';
     const sit = pose.sit;
-    const hipY = lerp(-54, -28, sit);
+    const hipY = lerp(-56, -20, sit);
     const legRotN = -(pose.legN + sit * 1.5);
     const legRotF = -(pose.legF + sit * 1.35);
 
-    // far leg
-    at(ctx, -20 + sit * 6, hipY + pose.bob * 0.4 - pose.legFLift, legRotF, () => poohLeg(ctx, pose, false, 21));
+    // both legs first: the tummy overhangs their tops
+    at(ctx, -18 + sit * 6, hipY + pose.bob * 0.4 - pose.legFLift, legRotF, () => poohLeg(ctx, pose, false, 21, legRotF));
+    at(ctx, 14 + sit * 10, hipY + pose.bob * 0.4 - pose.legNLift, legRotN, () => poohLeg(ctx, pose, true, 22, legRotN));
 
     const bodyFrame = () => {
       ctx.translate(0, hipY + pose.bob);
       ctx.rotate(pose.lean);
       ctx.scale(1 / Math.sqrt(pose.squash), pose.squash);
     };
-    // body + far arm
+    const headFrame = () => {
+      ctx.translate(pose.headX, POOH.neckY + pose.headY);
+      ctx.rotate(pose.head);
+    };
+    const HS = shape(POOH.head);
+
     ctx.save();
     bodyFrame();
-    at(ctx, -26, -104, -pose.armF, () => poohArm(ctx, pose, false, 31));
-    part(ctx, POOH.body, {
-      wash: PAL.poohFur, washA: 0.34, lw: 2.9, seed: 11, breaks: 4, shade: pose.shade, hSp: 3.5, hA: 0.6, cross: 0.55,
-      fur: [[0.66, 0.92, 0.09, 4.5], [0.28, 0.36, 0.08, 3]],
+    at(ctx, -24, -122, -pose.armF, () => poohArm(ctx, pose, false, 31));
+    const BS = part(ctx, POOH.body, {
+      tint: TINT.pooh, lw: 3.8, seed: 11, shade: sh, hAngle: -1.42, hSp: 2.0, hW: 1.15, hDepth: 34, hLen: 52, hA: 0.85, cross: 0.45,
+      fur: [[0.7, 0.9, 0.05, 2.6]],
     });
     // the round of the tummy
-    ink.line(ctx, [[36, -14], [47, -44], [42, -74]], { w: 1.2, seed: 12, alpha: 0.5, taper: [0.4, 0.4] });
+    ink.line(ctx, [[34, -18], [45, -46], [42, -78]], { w: 1.3, seed: 12, alpha: 0.55, taper: [0.4, 0.4] });
+    // the near arm's shadow on the tummy
+    ctx.save();
+    ctx.clip(BS.path);
+    const armPts = tube(66, 34, 27, pose.armNCurl, 10, 0.6).pts;
+    const l = Math.hypot(sh[0], sh[1]) || 1;
+    castFrom(ctx, xform(armPts, 20, -122, -pose.armN), (-sh[0] / l) * 9, (-sh[1] / l) * 7, { seed: 14 });
     ctx.restore();
 
-    // near leg in front of the body bottom
-    at(ctx, 16 + sit * 10, hipY + pose.bob * 0.4 - pose.legNLift, legRotN, () => poohLeg(ctx, pose, true, 22));
-
-    // head, held things and near arm follow the body
-    ctx.save();
-    bodyFrame();
     if (pose.hold === 'behind' && pose.holdFn) pose.holdFn(ctx);
+
     ctx.save();
-    ctx.translate(2 + pose.headX, -118 + pose.headY);
-    ctx.rotate(pose.head);
-    ctx.scale(0.94, 0.94);
-    poohEar(ctx, -26, -86, -0.3, pose.earWind, t, 41);
-    const H = part(ctx, POOH.head, { wash: PAL.poohFur, washA: 0.34, lw: 2.8, seed: 51, breaks: 4, shade: pose.shade, hSp: 3.5, hA: 0.5, cross: 0.5, fur: [[0.74, 0.99, 0.09, 4]] });
+    headFrame();
+    poohEar(ctx, -17, -80, -0.22, pose.earWind, t, 41, sh);
+    paint(ctx, HS, { tint: TINT.pooh, lw: 3.6, seed: 51, shade: sh, hAngle: -1.05, hSp: 2.2, hDepth: 12, hLen: 20, hA: 0.7, hThr: 0.45, open: [18, 20], fur: [[0.74, 0.86, 0.05, 2.4]] });
     // where the muzzle meets the face
-    ink.line(ctx, [[46, -62], [44, -50], [45, -37]], { w: 1.1, seed: 52, alpha: 0.4, taper: [0.4, 0.4] });
-    // nose
+    ink.line(ctx, [[37, -52], [35, -41], [37, -29]], { w: 1.2, seed: 52, alpha: 0.45, taper: [0.4, 0.4] });
+    // nose, a blob at the tip of the muzzle
     ctx.fillStyle = PAL.ink;
     ctx.beginPath();
-    ctx.ellipse(59.5, -46, 5.2, 4.3, 0.2, 0, TAU);
+    ctx.ellipse(49.5, -38.5, 5.4, 4.4, 0.35, 0, TAU);
     ctx.fill();
-    // eye (a dot; blinks to a short line; 2 = a contented closed curve)
-    const ex = 31 + pose.lookX * 2, ey = -59 + pose.lookY * 2;
+    // eye: a dot at the root of the muzzle (blinks to a short line; 2 = a contented closed curve)
+    const ex = 21 + pose.lookX * 2, ey = -41 + pose.lookY * 2;
     ctx.fillStyle = PAL.ink;
     if (pose.eye === 2) {
-      ink.line(ctx, [[ex - 4.5, ey + 1.5], [ex, ey - 2], [ex + 4.5, ey + 1.5]], { w: 1.7, seed: 53, taper: [0.3, 0.3] });
+      ink.line(ctx, [[ex - 4.5, ey + 1.5], [ex, ey - 2], [ex + 4.5, ey + 1.5]], { w: 1.8, seed: 53, taper: [0.3, 0.3] });
     } else if (pose.blink > 0.5) {
-      ink.line(ctx, [[ex - 4, ey + 0.5], [ex + 4, ey]], { w: 1.8, seed: 54, taper: [0.3, 0.3] });
+      ink.line(ctx, [[ex - 4, ey + 0.5], [ex + 4, ey]], { w: 1.9, seed: 54, taper: [0.3, 0.3] });
     } else {
       ctx.beginPath();
-      ctx.ellipse(ex, ey, 2.8, 3.3 * (1 - pose.blink * 0.8), 0, 0, TAU);
+      ctx.ellipse(ex, ey, 2.7, 3.2 * (1 - pose.blink * 0.8), 0, 0, TAU);
       ctx.fill();
     }
-    // brow — tells us what the bear is thinking
+    // brow — a small slanting stroke that tells us what the bear is thinking
     const b = pose.brow;
-    ink.line(ctx, [[ex - 7, ey - 9 - b * 2.5], [ex, ey - 11.5 - b * 3.5], [ex + 6, ey - 10 - b * 0.5]], { w: 1.25, seed: 55, alpha: 0.8, taper: [0.4, 0.4] });
-    // mouth
+    ink.line(ctx, [[ex - 8, ey - 10 - b * 2.5], [ex - 1, ey - 12.5 - b * 3.5], [ex + 6, ey - 10.5 - b * 0.5]], { w: 1.4, seed: 55, alpha: 0.85, taper: [0.4, 0.4] });
+    // mouth, tucked under the muzzle
     if (pose.mouth < -0.3) {
       ctx.strokeStyle = PAL.ink;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.ellipse(53, -33.5, 2.5, 3, 0, 0, TAU);
+      ctx.ellipse(40, -21, 2.8, 3.3, 0, 0, TAU);
       ctx.stroke();
     } else {
       const m = pose.mouth;
-      ink.line(ctx, [[58, -37.5], [53.5, -34 + m * 2], [48, -35.5 - m * 1.4]], { w: 1.4, seed: 56, taper: [0.3, 0.4] });
+      ink.line(ctx, [[46, -24.5], [41, -21.5 + m * 1.8], [35, -22.5 - m * 1.4]], { w: 1.4, seed: 56, taper: [0.3, 0.4], alpha: 0.9 });
     }
-    poohEar(ctx, 18, -90, 0.22, pose.earWind, t + 0.3, 42);
+    poohEar(ctx, 21, -82, 0.24, pose.earWind, t + 0.3, 42, sh);
     ctx.restore();
 
     if (pose.hold === 'front' && pose.holdFn) pose.holdFn(ctx);
-    at(ctx, 22, -106, -pose.armN, () => poohArm(ctx, pose, true, 32));
+    at(ctx, 20, -122, -pose.armN, () => poohArm(ctx, pose, true, 32));
     if (pose.hold === 'over' && pose.holdFn) pose.holdFn(ctx);
     ctx.restore();
     ctx.restore();
@@ -254,45 +342,42 @@
   };
 
   const PIG = {
-    leg: [[-5, -6], [5, -6], [5.5, 10], [9, 14], [11, 18], [7, 21], [-5, 21], [-6.5, 12]],
-    body: [[-20, 4], [0, 8], [20, 4], [23, -18], [21, -40], [14, -54], [0, -59], [-12, -57], [-20, -46], [-23, -20]],
-    head: [[-2, -57], [12, -55], [22, -47], [27, -41], [33, -38.5], [37.5, -35], [38.5, -28.5], [35, -23.5], [27, -19], [20, -8], [6, -3], [-10, -5], [-21, -15], [-25, -31], [-21, -47], [-13, -55]],
-    ear: [[-6, 2], [-6, -8], [-2, -19], [1, -25], [5, -12], [7, 2]],
-    sleeve: [[-7, -7], [7, -7], [7.5, 6], [0, 8.5], [-7.5, 6]],
+    leg: [[-5.5, -12], [5.5, -12], [5.5, 8], [8, 12], [12, 15], [12, 19], [7, 21], [-4, 21], [-6.5, 16], [-6, 4]],
+    // the jumper, hip frame: a barrel, fuller at the back and bottom
+    body: [[-22, 3], [0, 7], [21, 3], [27, -14], [28, -36], [23, -56], [13, -72], [2, -80], [-9, -80], [-19, -72], [-28, -55], [-32, -32], [-30, -11]],
+    // head frame (origin at the neck): wider than tall, tapering to a level snout
+    head: [[-12, 1], [4, 0], [16, -4], [25, -9], [31, -12.5], [37, -15], [42.5, -17], [44, -22], [42.5, -27], [37, -28.5], [31, -30], [29, -36], [24, -43], [14, -49], [1, -51], [-11, -48], [-20, -41], [-25, -30], [-24, -17], [-20, -7]],
+    // leaf-shaped ear, pointing up from its base
+    ear: [[-8, 1], [-9, -8], [-6, -16], [0, -24], [6, -15], [9, -7], [8, 1]],
+    neck: [2, -79],
   };
 
-  function pigEar(ctx, x, y, rot, flop, wind, t, seed) {
+  function pigEar(ctx, x, y, r, flop, wind, t, seed, shade) {
     const f = flop + wind * 0.35 * Math.sin(t * 23 + seed * 2);
-    at(ctx, x, y, rot, () => {
-      const pts = PIG.ear.map(([px, py]) => {
-        const k = clamp(-py / 25);
+    at(ctx, x, y, r, () => {
+      // ears bend along their length (floppy near the tip)
+      const bend = ([px, py]) => {
+        const k = clamp(-py / 27);
         const ang = f * k * k;
-        const c = Math.cos(ang), s = Math.sin(ang);
-        return [px * c - py * s, px * s + py * c];
-      });
-      part(ctx, pts, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.9, seed, breaks: 2, edge: 0.6, open: [0.84, 1.0] }, 6);
-      ink.line(ctx, [[0.5, -1], [pts[3][0] * 0.55, pts[3][1] * 0.55]], { w: 0.9, seed: seed + 1, alpha: 0.55, taper: [0.3, 0.3] });
+        return rot([px, py], ang);
+      };
+      const pts = PIG.ear.map(bend);
+      part(ctx, pts, { tint: TINT.piglet, lw: 2.4, seed, open: [6, 7], shade, hDepth: 4, hLen: 7, hSp: 2.2, hA: 0.6, edge: 0.5 }, 6);
+      // the fold down the middle
+      ink.line(ctx, [[0.5, -1], bend([0.5, -8]), bend([0.5, -16])], { w: 1, seed: seed + 1, alpha: 0.7, taper: [0.3, 0.5] });
     });
   }
 
   function pigArm(ctx, pose, near, seed) {
-    const tb = tube(27, 8, 7, near ? pose.armNCurl : pose.armFCurl, 8);
-    part(ctx, tb.pts, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.6, seed, breaks: 2, edge: 0.5, open: [0.955, 1.0] }, 3);
-    const sl = part(ctx, PIG.sleeve, { wash: PAL.mossDeep, washA: 0.7, lw: 1.7, seed: seed + 3, breaks: 1 }, 5);
-    ctx.save();
-    ctx.clip(sl.path);
-    ctx.strokeStyle = PAL.ink;
-    ctx.globalAlpha = 0.85;
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.moveTo(-9, -3); ctx.lineTo(9, -3.5);
-    ctx.moveTo(-9, 3); ctx.lineTo(9, 2.5);
-    ctx.stroke();
-    ctx.restore();
+    const a = near ? pose.armN : pose.armF;
+    const tb = tube(38, 7, 5.6, near ? pose.armNCurl : pose.armFCurl, 8, 0.9);
+    const S = shape(tb.pts, 3);
+    const top = tb.pts.length - 1;
+    paint(ctx, S, { tint: TINT.piglet, lw: 2.1, seed, shade: rot(pose.shade, a), hAngle: 1.45, hDepth: 3, hLen: 10, hSp: 2.2, hA: 0.6, edge: 0.5, open: [top - 1, top + 2] });
   }
 
-  function pigLeg(ctx, pose, seed) {
-    part(ctx, PIG.leg, { wash: PAL.pigletSkin, washA: 0.5, lw: 1.7, seed, breaks: 2, edge: 0.5, open: [0.0, 0.12] }, 6);
+  function pigLeg(ctx, pose, seed, r) {
+    part(ctx, PIG.leg, { tint: TINT.piglet, lw: 2.3, seed, shade: rot(pose.shade, -r), hAngle: 1.5, hDepth: 4, hLen: 9, hSp: 2.2, hA: 0.6, edge: 0.5, open: [0, 1] }, 6);
   }
 
   function jumper(ctx, pose) {
@@ -300,100 +385,113 @@
     const { P, path } = S;
     ctx.fillStyle = PAL.paperLight;
     ctx.fill(path);
-    ink.wash(ctx, path, PAL.mossLight, { alpha: 0.5, edge: 0.3 });
+    ink.wash(ctx, path, PAL.moss, { alpha: 0.3, edge: 0.3 });
     ctx.save();
     ctx.clip(path);
-    // knitted stripes: dark bands, inked with close hatching, narrow light gaps
-    for (let i = 0; i < 9; i++) {
-      const y0 = 7 - i * 7.3;
+    // knitted stripes: bands of close ink hatching over a moss-green wash, with thin pale gaps,
+    // curving round the barrel of his body
+    for (let i = 0; i < 10; i++) {
+      const y0 = 7 - i * 8.6;
+      const sag = 3.2 - i * 0.12;
       const band = new Path2D();
-      band.moveTo(-40, y0);
-      band.quadraticCurveTo(0, y0 + 3, 40, y0);
-      band.lineTo(40, y0 - 4.9);
-      band.quadraticCurveTo(0, y0 - 1.9, -40, y0 - 4.9);
+      band.moveTo(-45, y0 - 1);
+      band.quadraticCurveTo(-2, y0 + sag, 40, y0 - 1);
+      band.lineTo(40, y0 - 6.8);
+      band.quadraticCurveTo(-2, y0 - 6.8 + sag, -45, y0 - 6.8);
       band.closePath();
-      ctx.fillStyle = rgba(PAL.mossDeep, 0.85);
+      ctx.fillStyle = rgba(PAL.mossDeep, 0.9);
       ctx.fill(band);
       ctx.save();
       ctx.clip(band);
-      ink.hatch(ctx, [-30, y0 - 7, 60, 10], { angle: 0.04, spacing: 1.5, w: 0.95, alpha: 0.85, seed: 70 + i, minLen: 0.3, lenVar: 0.9, jitter: 0.3 });
+      ink.hatch(ctx, [-40, y0 - 10, 80, 14], { angle: 0.05, spacing: 1.2, w: 1.1, alpha: 0.95, seed: 70 + i, minLen: 0.35, lenVar: 0.9, jitter: 0.3 });
       ctx.restore();
     }
     ctx.restore();
-    ink.shadeCrescent(ctx, path, bbox(P), pose.shade[0], pose.shade[1], { angle: -1.1, spacing: 2.6, w: 0.8, alpha: 0.5, seed: 77, color: PAL.ink });
-    ink.outline(ctx, P, { w: 2.1, seed: 78, breaks: 3, wobble: 0.5, press: 0.5 });
+    const l0 = Math.hypot(pose.shade[0], pose.shade[1]) || 1;
+    ink.edgeHatch(ctx, P, path, { dir: [-pose.shade[0] / l0, -pose.shade[1] / l0], angle: -1.4, spacing: 2.2, depth: 12, len: 22, w: 0.9, alpha: 0.6, seed: 77 });
+    const l = Math.hypot(pose.shade[0], pose.shade[1]) || 1;
+    const bb = bbox(P);
+    ink.outline(ctx, P, { w: 2.8, seed: 78, breaks: 3, wobble: 0.7, press: 0.6, heavy: { cx: bb[0] + bb[2] / 2, cy: bb[1] + bb[3] / 2, dx: -pose.shade[0] / l, dy: -pose.shade[1] / l, k: 0.8 } });
+    return S;
   }
 
   function drawPiglet(ctx, pose0) {
     const pose = Object.assign({}, PIGLET_DEFAULT, pose0);
     const t = pose.t;
+    const sh = pose.shade;
     ctx.save();
     ctx.lineJoin = 'round';
     const sit = pose.sit;
-    const hipY = lerp(-20, -10, sit);
-    at(ctx, -8 + sit * 2, hipY + pose.bob * 0.4 - pose.legFLift, -(pose.legF + sit * 1.4), () => pigLeg(ctx, pose, 121));
+    const hipY = lerp(-20, -9, sit);
+    const rF = -(pose.legF + sit * 1.4), rN = -(pose.legN + sit * 1.5);
+    at(ctx, -10 + sit * 2, hipY + pose.bob * 0.4 - pose.legFLift, rF, () => pigLeg(ctx, pose, 121, rF));
+    at(ctx, 8 + sit * 4, hipY + pose.bob * 0.4 - pose.legNLift, rN, () => pigLeg(ctx, pose, 122, rN));
 
     const bodyFrame = () => {
       ctx.translate(0, hipY + pose.bob);
       ctx.rotate(pose.lean);
       ctx.scale(1 / Math.sqrt(pose.squash), pose.squash);
     };
-    at(ctx, 7 + sit * 4, hipY + pose.bob * 0.4 - pose.legNLift, -(pose.legN + sit * 1.5), () => pigLeg(ctx, pose, 122));
-    ctx.save();
-    bodyFrame();
-    at(ctx, -13, -45, -pose.armF, () => pigArm(ctx, pose, false, 131));
-    jumper(ctx, pose);
-    ctx.restore();
+    const headFrame = () => {
+      ctx.translate(PIG.neck[0] + pose.headX, PIG.neck[1] + pose.headY);
+      ctx.rotate(pose.head);
+    };
+    const HS = shape(PIG.head, 7);
 
     ctx.save();
     bodyFrame();
+    at(ctx, -18, -66, -pose.armF, () => pigArm(ctx, pose, false, 131));
+    const JS = jumper(ctx, pose);
+    // the head's shadow on the top of the jumper
     ctx.save();
-    ctx.translate(1 + pose.headX, -52 + pose.headY);
-    ctx.rotate(pose.head);
-    pigEar(ctx, -13, -48, -0.42 + pose.earF, -0.5 * pose.earF, pose.earWind, t, 141);
-    part(ctx, PIG.head, { wash: PAL.pigletSkin, washA: 0.5, lw: 2.2, seed: 151, breaks: 4, shade: pose.shade, hSp: 3.1, hA: 0.45, edge: 0.6, cross: 0.45 });
-    if (pose.blush > 0) ink.bloom(ctx, 15, -17, 8, '#d99a80', 0.3 * pose.blush, 0.8);
-    // flat end of the snout
+    ctx.clip(JS.path);
+    headFrame();
+    castUnder(ctx, HS, 2, 7, { rect: [-40, -20, 80, 40], seed: 79, spacing: 2.2, alpha: 0.6 });
+    ctx.restore();
+
     ctx.save();
-    ctx.translate(37.6, -31.5);
-    ctx.rotate(-0.14);
+    headFrame();
+    pigEar(ctx, -9, -44, -1.0 + pose.earF, -0.55 * pose.earF, pose.earWind, t, 141, sh);
+    paint(ctx, HS, { tint: TINT.piglet, lw: 2.8, seed: 151, shade: sh, hAngle: -1.0, hDepth: 10, hLen: 14, hSp: 2.3, hA: 0.7, edge: 0.55 });
+    if (pose.blush > 0) ink.bloom(ctx, 11, -14, 8, '#d99a80', 0.22 * pose.blush, 0.8);
+    // the flat end of the snout
+    ctx.save();
+    ctx.translate(43.1, -22);
+    ctx.rotate(-0.05);
     ctx.beginPath();
-    ctx.ellipse(0, 0, 1.6, 3.6, 0, 0, TAU);
-    ctx.fillStyle = rgba('#dca78f', 0.8);
+    ctx.ellipse(0, 0, 1.5, 4.0, 0, 0, TAU);
+    ctx.fillStyle = rgba('#d8a088', 0.3);
     ctx.fill();
     ctx.restore();
-    ink.line(ctx, [[27, -40], [26, -31], [27, -21]], { w: 0.9, seed: 153, alpha: 0.35, taper: [0.4, 0.4] });
+    ink.line(ctx, [[42.1, -26], [41.1, -22], [42.1, -18.2]], { w: 1.2, seed: 153, alpha: 0.85, taper: [0.3, 0.3] });
+    // eye: a dot at the root of the snout
     ctx.fillStyle = PAL.ink;
-    ctx.beginPath();
-    ctx.ellipse(38.2, -33.2, 0.8, 1.3, 0, 0, TAU);
-    ctx.ellipse(38.0, -29.6, 0.8, 1.3, 0, 0, TAU);
-    ctx.fill();
-    // eye
-    const ex = 22 + pose.lookX * 1.5, ey = -40 + pose.lookY * 1.5;
+    const ex = 26 + pose.lookX * 1.5, ey = -23.5 + pose.lookY * 1.5;
     if (pose.eye === 2) {
-      ink.line(ctx, [[ex - 3.2, ey + 1], [ex, ey - 1.8], [ex + 3.2, ey + 1]], { w: 1.35, seed: 154, taper: [0.3, 0.3] });
+      ink.line(ctx, [[ex - 3.2, ey + 1], [ex, ey - 1.8], [ex + 3.2, ey + 1]], { w: 1.45, seed: 154, taper: [0.3, 0.3] });
     } else if (pose.blink > 0.5) {
-      ink.line(ctx, [[ex - 3, ey], [ex + 3, ey]], { w: 1.45, seed: 155, taper: [0.3, 0.3] });
+      ink.line(ctx, [[ex - 3, ey], [ex + 3, ey]], { w: 1.5, seed: 155, taper: [0.3, 0.3] });
     } else {
       ctx.beginPath();
-      ctx.ellipse(ex, ey, 2.1, 2.6 * (1 - pose.blink * 0.8), 0, 0, TAU);
+      ctx.ellipse(ex, ey, 2.1, 2.5 * (1 - pose.blink * 0.8), 0, 0, TAU);
       ctx.fill();
     }
-    // mouth
+    // mouth: a little line under the root of the snout
     if (pose.mouth < -0.3) {
       ctx.strokeStyle = PAL.ink;
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.3;
       ctx.beginPath();
-      ctx.ellipse(29.5, -20.5, 1.8, 2.3, 0, 0, TAU);
+      ctx.ellipse(31, -10.5, 1.8, 2.2, 0, 0, TAU);
       ctx.stroke();
     } else {
       const m = pose.mouth;
-      ink.line(ctx, [[33.5, -22.5], [29.5, -19.5 + m * 1.6], [24.5, -21 - m * 1.1]], { w: 1.15, seed: 156, taper: [0.3, 0.4] });
+      ink.line(ctx, [[35.5, -13.5], [31, -10.5 + m * 1.4], [26.5, -11.5 - m * 1.1]], { w: 1.3, seed: 156, taper: [0.3, 0.4] });
     }
-    pigEar(ctx, 6, -53, 0.18 + pose.earN, 0.45 * pose.earN, pose.earWind, t + 0.4, 142);
+    pigEar(ctx, 12, -48, 0.1 + pose.earN, 0.45 * pose.earN, pose.earWind, t + 0.4, 142, sh);
     ctx.restore();
+
     if (pose.hold && pose.holdFn) pose.holdFn(ctx);
-    at(ctx, 12, -45, -pose.armN, () => pigArm(ctx, pose, true, 132));
+    at(ctx, 15, -64, -pose.armN, () => pigArm(ctx, pose, true, 132));
     ctx.restore();
     ctx.restore();
   }

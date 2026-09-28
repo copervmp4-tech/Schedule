@@ -765,14 +765,14 @@
     if (G && clothFlat) items.push({ z: 1e9, draw: () => CL.draw(a, G) });
     const holdPot = (scale = 0.82) => (g) => {
       g.save();
-      g.translate(40, -8);
+      g.translate(36, -28);
       g.scale(scale, scale);
       drawPot(g, {});
       g.restore();
     };
     const bundle = (g) => {
       g.save();
-      g.translate(44, -34);
+      g.translate(44, -58);
       CL.drawBundle(g);
       g.restore();
     };

@@ -60,16 +60,28 @@ export/               the MP4
 
 ## How it was made
 
-1. **Research.** Studied the 1926 illustrations (Project Gutenberg #67098) for:
-   - Pooh's unclothed teddy-bear build: round head, blunt muzzle, dot eyes, small high ears, long tummy, tube arms, stubby legs
-   - Piglet: large head, short snout, pointed ears, striped knitted jumper
+1. **Research.** Studied the 1926 illustrations (Project Gutenberg #67098) and measured the characters' proportions from them (each figure cropped to its own height, landmarks read off a grid):
+   - **Pooh**, an unclothed teddy bear:
+     - ears about 0.12 of his height, set on top of a head that fills the top third
+     - one back line running from head to seat, with no neck
+     - a short blunt muzzle with the nose at its tip, and a dot of an eye at its root
+     - a pear-shaped tummy that leans back over short round legs
+     - short thick arms starting just under the jaw
+   - **Piglet**:
+     - a head about 1.45 times wider than tall, with a round cranium and a short level snout with a flat end
+     - the eye at the snout's root
+     - big leaf-shaped ears, the far one flopping sideways
+     - a barrel of a jumper about half his height, striped almost black
+     - thin bare arms and very short legs
    - The HUNNY pots, the *Mr Sanders* door, the heath-and-pine Forest
+
+   The characters were then checked side by side, and as silhouette overlays, against the 1926 figures in matching poses until the proportions lined up.
 2. **Script** ([docs/script.md](docs/script.md)). Original story, narration and dialogue, sized for about 35 s of speech in a 60 s film so pictures and pauses carry the rest.
 3. **Narration** (`tools/narration_tts.py`). Kokoro-82M text-to-speech run locally. The voice is `bf_emma`, a warm British storyteller, at a gentle 0.80–0.88 speed. Voices were compared on predicted quality (SQUIM MOS) and Whisper transcription; `bf_emma` scored near the top and is Kokoro's highest-graded British voice. One narrator reads the characters' lines too, as in a bedtime reading.
 4. **Cue sheet** (`tools/build_cues.py`). Places each line on the timeline, inserts a comic pause before "…and a space just the size of a Piglet", and derives subtitle times from the model's word timestamps.
 5. **Picture** (`js/`). Every element is drawn in code:
-   - tapered, wobbly pen lines
-   - crescent hatching on the shadow side
+   - characters that are line-led, like the book: figures a shade lighter than the page with only a faint tint, and a bold broken pen outline pressed harder on the side away from the light
+   - hatching that starts at the contour and fades inward the way Shepard's does, plus the shadow an arm casts on the tummy
    - mottled watercolour with pooled edges
    - paper cut-outs with a cream margin and soft shadow
    - five parallax depths

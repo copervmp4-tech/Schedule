@@ -70,7 +70,16 @@
       let tp = 1;
       if (u < tin) tp = lerp(minTip, 1, WP.smooth(u / tin));
       if (u > 1 - tout) tp = Math.min(tp, lerp(minTip, 1, WP.smooth((1 - u) / tout)));
-      const ww = Math.max(0.15, w * tp * (1 + press * noise1(s * 0.045 + seed * 7.13)) * 0.5);
+      // o.heavy = { cx, cy, dx, dy, k }: the pen presses harder on the side of the form away from
+      // the light (Shepard's outlines thicken along a figure's shadowed underside)
+      let hv = 1;
+      if (o.heavy) {
+        const H = o.heavy;
+        const rx = P[i][0] - H.cx, ry = P[i][1] - H.cy;
+        const rl = Math.hypot(rx, ry) || 1;
+        hv = 1 + H.k * Math.max(0, (rx * H.dx + ry * H.dy) / rl);
+      }
+      const ww = Math.max(0.15, w * hv * tp * (1 + press * noise1(s * 0.045 + seed * 7.13)) * 0.5);
       const off = wob * fbm1(s * 0.018 + seed * 3.7, 2);
       const cx = P[i][0] + nx * off, cy = P[i][1] + ny * off;
       left[i] = [cx + nx * ww, cy + ny * ww];
@@ -197,6 +206,79 @@
       }
     }
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * Shepard-style shading: strokes that start at the contour on the shadowed side and
+   * reach inward, longer and deeper where the form turns furthest from the light, so
+   * the shaded area has a ragged, hand-made inner edge rather than a band.
+   *   P, path : the closed outline;  o.dir : unit vector pointing away from the light
+   *   o.angle : stroke direction;  o.depth / o.len : how far in they reach (px)
+   */
+  function edgeHatch(ctx, P, path, o) {
+    const R = rng((o.seed ?? 1) * 7717 + 13);
+    let cx = 0, cy = 0;
+    for (const p of P) { cx += p[0]; cy += p[1]; }
+    cx /= P.length; cy /= P.length;
+    const Q = resample(P.concat([P[0]]), o.spacing ?? 2.6);
+    const ha = [Math.cos(o.angle ?? -1.35), Math.sin(o.angle ?? -1.35)];
+    const thr = o.threshold ?? 0.08;
+    const draw = (depthK, lenK, prob, rotA) => {
+      const c = Math.cos(rotA), s = Math.sin(rotA);
+      const h = [ha[0] * c - ha[1] * s, ha[0] * s + ha[1] * c];
+      ctx.beginPath();
+      for (let i = 0; i < Q.length - 1; i++) {
+        const a = Q[Math.max(0, i - 2)], b = Q[Math.min(Q.length - 1, i + 2)];
+        let tx = b[0] - a[0], ty = b[1] - a[1];
+        const tl = Math.hypot(tx, ty) || 1;
+        tx /= tl; ty /= tl;
+        let nx = ty, ny = -tx;
+        if ((Q[i][0] - cx) * nx + (Q[i][1] - cy) * ny < 0) { nx = -nx; ny = -ny; }
+        const f = nx * o.dir[0] + ny * o.dir[1];
+        if (f <= thr) continue;
+        const k = Math.pow((f - thr) / (1 - thr), 0.75);
+        if (R() > prob * (0.3 + 0.7 * k)) continue;
+        let dx = h[0], dy = h[1];
+        if (dx * nx + dy * ny > 0) { dx = -dx; dy = -dy; }
+        const along = Math.abs(dx * nx + dy * ny);
+        const depth = R() * (o.depth ?? 20) * depthK * k * (1 - 0.65 * along);
+        const L = (o.len ?? 30) * lenK * k * (0.45 + 0.75 * R());
+        const x0 = Q[i][0] + nx * 1.5 - nx * depth, y0 = Q[i][1] + ny * 1.5 - ny * depth;
+        const x1 = x0 + dx * L, y1 = y0 + dy * L;
+        const bend = (R() - 0.5) * L * 0.14;
+        ctx.moveTo(x0, y0);
+        ctx.quadraticCurveTo((x0 + x1) / 2 - dy * bend, (y0 + y1) / 2 + dx * bend, x1, y1);
+      }
+      ctx.stroke();
+    };
+    ctx.save();
+    ctx.clip(path);
+    if (o.wash) {
+      // a faint sepia shade laid under the strokes
+      const moved = new Path2D();
+      moved.addPath(path, new DOMMatrix([1, 0, 0, 1, -o.dir[0] * (o.depth ?? 20) * 0.8, -o.dir[1] * (o.depth ?? 20) * 0.8]));
+      const both = new Path2D();
+      both.addPath(path);
+      both.addPath(moved);
+      ctx.save();
+      ctx.clip(both, 'evenodd');
+      ctx.globalAlpha *= o.washAlpha ?? 0.1;
+      ctx.fillStyle = o.wash;
+      ctx.fill(path);
+      ctx.restore();
+    }
+    ctx.strokeStyle = o.color ?? PAL.ink;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = o.w ?? 1;
+    ctx.globalAlpha *= o.alpha ?? 0.8;
+    draw(1, 1, 1, 0);
+    if (o.cross) {
+      // a few crossing strokes where the shadow is deepest
+      ctx.globalAlpha *= o.cross;
+      ctx.lineWidth = (o.w ?? 1) * 0.85;
+      draw(0.55, 0.5, 0.45, 0.95);
+    }
     ctx.restore();
   }
 
@@ -413,5 +495,5 @@
     return { canvas: c, pad };
   }
 
-  WP.ink = { stroke, outline, line, ticks, hatch, shadeCrescent, wash, bloom, slice, resample, polyLen, makePaper, makeGrain, washTexture, cutout };
+  WP.ink = { stroke, outline, line, ticks, hatch, shadeCrescent, edgeHatch, wash, bloom, slice, resample, polyLen, makePaper, makeGrain, washTexture, cutout };
 })();
