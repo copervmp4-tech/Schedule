@@ -15,11 +15,13 @@ from kokoro import KPipeline
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "assets", "audio", "narration", "prompts")
 
-# role: (Kokoro voice, text read for the prompt, speed). The texts are original.
+# role: (Kokoro voice, text read for the prompt, speed). The texts are original, and dense in
+# the sounds that mark a British (RP) accent (after, half, rather, water, not, go...):
+# Chatterbox takes its accent as well as its timbre from the first few seconds of the prompt.
 PROMPTS = {
-    "narrator": ("bf_emma", "Once upon a time, in a corner of the forest, there lived a small and very round bear. Every morning he would sit outside his door, and wonder, quite seriously, what the day might bring.", 0.95),
-    "pooh": ("bm_george", "Well, I don't know. I was just thinking. It seems to me that a little something, at about this time of day, would be a very good idea.", 0.9),
-    "piglet": ("bf_lily", "Oh! Oh dear. I didn't expect that at all. Is it really, really for me? How very kind. Thank you ever so much.", 1.0),
+    "narrator": ("bf_emma", "After half past four, the water was rather calm, and not a soul was about. Far across the park, an old dog barked at nothing at all.", 0.95),
+    "pooh": ("bm_george", "Well, I rather thought, after a morning like that, that a small pot of honey would not go amiss. Not a large one. Just a little one.", 0.9),
+    "piglet": ("bf_lily", "Oh! Oh dear. I hadn't thought of that at all. Is it really for me? What a lot of honey! Thank you ever so much.", 1.0),
 }
 
 

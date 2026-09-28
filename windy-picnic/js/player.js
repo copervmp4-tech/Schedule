@@ -17,9 +17,11 @@
     loading: $('loading'), bar: $('loadingBar'), replayCard: $('replayCard'), replayBig: $('replayBig'),
     play: $('playPause'), replay: $('replay'), scrub: $('scrub'), fill: $('scrubFill'), time: $('time'),
     cc: $('cc'), mute: $('mute'), full: $('full'), live: $('captionLive'), stage: $('stage'),
+    room: $('room'), controls: $('controls'), captions: $('captions'),
   };
 
-  const state = { ready: false, started: false, playing: false, captions: true, muted: false, lastCaption: '' };
+  const state = { ready: false, started: false, playing: false, captions: true, muted: false, lastCaption: '', narrow: false, immersive: false, pseudoFull: false, subLift: 0 };
+  const touch = matchMedia('(pointer: coarse)').matches;
 
   /* ------------------------------------------------------------ sound */
 
@@ -53,10 +55,14 @@
       // The audio clock ticks in blocks (every 3–20 ms depending on the browser), which makes
       // motion judder if used raw. getOutputTimestamp pairs it with the page clock, so we can
       // read the audio position at this exact moment, then keep it from ever stepping back.
-      let now = this.ctx.currentTime - this.latency();
+      const base = this.ctx.currentTime - this.latency();
+      let now = base;
       if (this.ctx.getOutputTimestamp) {
         const ts = this.ctx.getOutputTimestamp();
-        if (ts.contextTime > 0 && ts.performanceTime > 0) now = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+        // a stale timestamp (the output device paused or changed: headphones, full screen,
+        // a phone call) would throw the picture far ahead; only use it while it agrees
+        const est = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+        if (ts.contextTime > 0 && ts.performanceTime > 0 && Math.abs(est - base) < 0.25) now = est;
       }
       const t = Math.max(0, now - this.startAt);
       if (t < this.lastT && this.lastT - t < 0.05) return this.lastT;
@@ -66,6 +72,8 @@
 
     async play(from) {
       this.offset = Math.max(0, Math.min(DUR, from));
+      // iPhone: let the film be heard even with the ring/silent switch on (Safari 17+)
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older Safari */ }
       if (this.failed || !this.buffer) {
         this.wallStart = performance.now();
         return;
@@ -144,12 +152,17 @@
   const perf = { avg: 0, slow: 0, lite: false };
   function draw(t) {
     const t0 = performance.now();
-    WP.film.render(ctx, Math.min(t, DUR), { cues: CUES, subtitles: state.captions, lite: perf.lite });
+    // subtitles go in the picture, unless the picture is too small to read them there
+    // with the controls floating over the picture, lift the subtitles clear of them
+    const lift = state.immersive && !ui.room.classList.contains('idle') ? 1 : 0;
+    state.subLift += (lift - state.subLift) * (state.playing ? 0.18 : 1);
+    WP.film.render(ctx, Math.min(t, DUR), { cues: CUES, subtitles: state.captions && !state.narrow, lite: perf.lite, subLift: state.subLift * 120 });
+    if (state.narrow) htmlCaptions(t);
     if (state.playing && !perf.lite) {
       const ms = performance.now() - t0;
       perf.avg = perf.avg ? perf.avg * 0.9 + ms * 0.1 : ms;
       perf.slow = perf.avg > 30 ? perf.slow + 1 : 0;
-      if (perf.slow > 45) {
+      if (perf.slow > (WP.lowMem ? 20 : 45)) {
         perf.lite = true;
         console.info('The Windy Picnic: switching to the lighter render for smoother playback.');
       }
@@ -165,6 +178,34 @@
       state.lastCaption = text;
       if (text && state.captions) ui.live.textContent = text;
     }
+  }
+
+  // The subtitles set as text below the film (phone held upright): the words ink in as they
+  // are spoken, characters' words in italic and in their colours, as in the picture.
+  const capState = { cue: null, spans: [] };
+  function htmlCaptions(t) {
+    const cue = state.captions ? CUES.find((c) => t >= c.start && t <= c.end) : null;
+    if (cue !== capState.cue) {
+      capState.cue = cue;
+      capState.spans = [];
+      ui.captions.textContent = '';
+      if (cue && cue.lines) {
+        for (const words of cue.lines) {
+          const line = document.createElement('div');
+          line.className = 'line';
+          words.forEach((w, i) => {
+            const sp = document.createElement('span');
+            sp.className = 'w ' + (w.sp === 'n' ? 'n' : w.sp);
+            sp.textContent = w.w;
+            line.appendChild(sp);
+            if (i < words.length - 1) line.appendChild(document.createTextNode(' '));
+            capState.spans.push([sp, w.t]);
+          });
+          ui.captions.appendChild(line);
+        }
+      }
+    }
+    for (const [sp, wt] of capState.spans) sp.classList.toggle('said', t >= wt - 0.02);
   }
 
   function fmt(t) {
@@ -184,7 +225,7 @@
     ui.cover.classList.add('gone');
     ui.replayCard.hidden = true;
     // keep keyboard focus on a visible control (the cover's button is going away)
-    if (document.activeElement === ui.begin || document.activeElement === ui.replayBig) ui.play.focus({ preventScroll: true });
+    if (!touch && (document.activeElement === ui.begin || document.activeElement === ui.replayBig)) ui.play.focus({ preventScroll: true });
     if (from == null) from = Sound.time() >= DUR - 0.05 ? 0 : Sound.time();
     await Sound.play(from);
     state.playing = true;
@@ -229,6 +270,7 @@
   function setPlayingUI() {
     ui.play.classList.toggle('playing', state.playing);
     ui.play.setAttribute('aria-label', state.playing ? 'Pause' : 'Play');
+    wake();
   }
 
   /* ------------------------------------------------------------ controls */
@@ -245,6 +287,7 @@
     state.captions = !state.captions;
     ui.cc.classList.toggle('on', state.captions);
     ui.cc.setAttribute('aria-pressed', String(state.captions));
+    ui.room.classList.toggle('show-captions', state.captions);
     if (!state.playing) draw(Sound.time());
   }
   function toggleMute() {
@@ -254,11 +297,82 @@
     ui.mute.setAttribute('aria-pressed', String(state.muted));
     ui.mute.setAttribute('aria-label', state.muted ? 'Unmute' : 'Mute');
   }
+  // Full screen takes the film and its controls together. Where a page may not go full
+  // screen (iPhone Safari), the page covers the screen itself instead.
   function toggleFull() {
-    const d = document;
-    if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
-    else (ui.stage.requestFullscreen || ui.stage.webkitRequestFullscreen).call(ui.stage);
+    const d = document, el = ui.room;
+    if (d.fullscreenElement || d.webkitFullscreenElement) {
+      (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      return;
+    }
+    if (state.pseudoFull) {
+      state.pseudoFull = false;
+      layout();
+      return;
+    }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    const pseudo = () => { state.pseudoFull = true; layout(); };
+    if (!req) return pseudo();
+    try {
+      Promise.resolve(req.call(el)).then(() => {
+        // phones: turn the picture sideways where the browser lets us
+        if (touch && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+      }, pseudo);
+    } catch (e) { pseudo(); }
   }
+
+  /* ------------------------------------------------------------ layout */
+
+  // narrow: the film is too small for subtitles inside it (a phone held upright)
+  // immersive: the film fills the screen and the controls float over it
+  function layout() {
+    const d = document;
+    const full = !!(d.fullscreenElement || d.webkitFullscreenElement) || state.pseudoFull;
+    const landscapePhone = touch && innerWidth > innerHeight && innerHeight < 560;
+    state.immersive = full || landscapePhone;
+    ui.room.classList.toggle('immersive', state.immersive);
+    ui.room.classList.toggle('pseudo-full', state.pseudoFull);
+    ui.room.classList.toggle('portrait', innerHeight > innerWidth);
+    // measure after the layout classes apply
+    state.narrow = false;
+    ui.room.classList.remove('narrow');
+    state.narrow = ui.stage.getBoundingClientRect().width < 600;
+    ui.room.classList.toggle('narrow', state.narrow);
+    ui.room.classList.toggle('show-captions', state.captions);
+    ui.full.setAttribute('aria-label', full ? 'Leave full screen' : 'Full screen');
+    if (!state.immersive) ui.room.classList.remove('idle');
+    else wake();
+    if (!state.narrow) { capState.cue = null; ui.captions.textContent = ''; }
+    if (state.ready && !state.playing) draw(Sound.time());
+  }
+  addEventListener('resize', layout);
+  addEventListener('orientationchange', () => setTimeout(layout, 200));
+  document.addEventListener('fullscreenchange', layout);
+  document.addEventListener('webkitfullscreenchange', layout);
+
+  // floating controls fade out after a few seconds of playing untouched
+  let idleTimer = 0;
+  function wake() {
+    ui.room.classList.remove('idle');
+    clearTimeout(idleTimer);
+    if (state.immersive && state.playing) idleTimer = setTimeout(() => ui.room.classList.add('idle'), 2800);
+  }
+  const controlsHidden = () => ui.room.classList.contains('idle');
+  ui.room.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') wake(); });
+  ui.controls.addEventListener('pointerdown', wake);
+
+  // a tap on the picture: on a touch screen with the controls floating, it shows or hides
+  // them; otherwise it plays or pauses, as a video would
+  ui.stage.addEventListener('click', (e) => {
+    if (!state.started || e.target.closest('button')) return;
+    if (touch && state.immersive) {
+      if (controlsHidden() || !state.playing) wake();
+      else { clearTimeout(idleTimer); ui.room.classList.add('idle'); }
+      return;
+    }
+    state.playing ? pause() : play();
+    wake();
+  });
 
   // scrubbing
   let dragging = false, wasPlaying = false;
@@ -300,6 +414,7 @@
     else if (k === 'c') toggleCaptions();
     else if (k === 'm') toggleMute();
     else if (k === 'f') toggleFull();
+    else if (k === 'escape' && state.pseudoFull) toggleFull();
     else if ((k === 'arrowleft' || k === 'arrowright') && state.started) seek(Sound.time() + (k === 'arrowleft' ? -5 : 5));
   });
 
@@ -323,6 +438,7 @@
       ui.beginLabel.textContent = `Preparing the pages… ${Math.round(p * 100)}%`;
       requestAnimationFrame(() => setTimeout(res, 0));
     });
+    layout();
     await WP.film.init(step);
     // a poster frame: the finished title page
     WP.film.render(ctx, 3.9, { cues: CUES, subtitles: false, poster: true });
@@ -344,5 +460,5 @@
   });
 
   // for automated checks
-  window.PLAYER = { state, perf, Sound, play, pause, replay, seek };
+  window.PLAYER = { state, perf, Sound, play, pause, replay, seek, layout, toggleFull };
 })();

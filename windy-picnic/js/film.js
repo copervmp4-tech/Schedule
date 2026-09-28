@@ -344,8 +344,13 @@
     return f;
   }
 
+  // A jump lifts all of Piglet, legs and all (bob only bounces his body on his legs); the
+  // height follows a thrown-ball arc, with a squash as he takes off and lands.
+  const hopArc = (u) => 4 * u * (1 - u);
+  const hopSquash = (u) => -0.12 * Math.exp(-((u / 0.08) ** 2)) - 0.1 * Math.exp(-(((u - 1) / 0.08) ** 2));
+
   function piglet(t) {
-    const s = { x: pigletX(t), z: 90, facing: pigletFacing(t), pose: {}, hidden: 0 };
+    const s = { x: pigletX(t), z: 90, facing: pigletFacing(t), pose: {}, hidden: 0, jump: 0 };
     const P = s.pose;
     Object.assign(P, blendTracks(pigTracks, pigTracks2, pigTracks3, t));
     P.t = t;
@@ -367,8 +372,10 @@
     // happy hop on "For us"
     if (t > T.hop && t < T.hop + 0.6) {
       const u = (t - T.hop) / 0.6;
-      P.bob -= Math.sin(u * Math.PI) * 42;
-      P.squash = 1 + 0.07 * Math.sin(u * Math.PI) - 0.12 * Math.exp(-((u / 0.08) ** 2)) - 0.1 * Math.exp(-(((u - 1) / 0.08) ** 2));
+      s.jump = hopArc(u) * 42;
+      P.squash = 1 + 0.07 * Math.sin(u * Math.PI) + hopSquash(u);
+      P.legN = lerp(P.legN, 0.25, Math.sin(u * Math.PI));
+      P.legF = lerp(P.legF, -0.15, Math.sin(u * Math.PI));
       P.armN = lerp(P.armN, 2.2, Math.sin(u * Math.PI));
       P.armF = lerp(P.armF, 2.0, Math.sin(u * Math.PI));
     }
@@ -381,7 +388,7 @@
       // a leap for the dipping cloth
       if (t > 30.7 && t < 31.35) {
         const u = (t - 30.7) / 0.65;
-        P.bob -= Math.sin(u * Math.PI) * 95;
+        s.jump = hopArc(u) * 95;
         P.armN = lerp(P.armN, 2.6, Math.sin(u * Math.PI));
         P.armF = lerp(P.armF, 2.4, Math.sin(u * Math.PI));
         P.legN = lerp(P.legN, 0.5, Math.sin(u * Math.PI));
@@ -395,7 +402,12 @@
     if (t >= 34.0 && t < T.cut2) {
       s.z = 58; // in front of the snagged cloth, so we see him hop for it
       // two hopeful hops by the gorse
-      for (const h0 of [34.12, 34.55]) if (t > h0 && t < h0 + 0.36) P.bob -= Math.sin(((t - h0) / 0.36) * Math.PI) * 30;
+      for (const h0 of [34.12, 34.55]) {
+        if (t <= h0 || t >= h0 + 0.36) continue;
+        const u = (t - h0) / 0.36;
+        s.jump = hopArc(u) * 30;
+        P.squash = (P.squash ?? 1) + hopSquash(u) * 0.8;
+      }
       // steps back and turns to Pooh while he sits and thinks
 
       if (t > 35.6 && t < 36.3) {
@@ -488,7 +500,7 @@
   /** A point in world space, in a character's own frame. */
   function toLocal(c, wx, wy) {
     const [px, py] = groundXY(c.x, c.z), sc = 1 - c.z * 0.0006, f = c.facing;
-    return [(wx - px) / (sc * (Math.abs(f) < 0.04 ? 0.04 * Math.sign(f || 1) : f)), (wy - py - (c.rise || 0)) / sc];
+    return [(wx - px) / (sc * (Math.abs(f) < 0.04 ? 0.04 * Math.sign(f || 1) : f)), (wy - py - (c.rise || 0) + (c.jump || 0)) / sc];
   }
   /** A spot on the ground (x, z), in Pooh's frame. */
   const toPooh = (pS, x, z) => toLocal(pS, ...groundXY(x, z));
@@ -883,6 +895,7 @@
       }
       xa -= 60; xb += 60;
       const top = Math.max(ya, -900), bottom = Math.min(yb, B.o.base + 700);
+      if (WP.lowMem && !B.lowRes) { B.res *= 0.8; B.lowRes = true; }
       const c = makeCanvas((xb - xa) * B.res, (bottom - top) * B.res);
       const g = c.getContext('2d');
       g.scale(B.res, B.res);
@@ -954,7 +967,7 @@
     ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
     // ground contact shadows (on the scene, beneath the cut-outs)
     contactShadow(ctx, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
-    if (!gS.rise || gS.rise < 40) contactShadow(ctx, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
+    if (!gS.rise || gS.rise < 40) contactShadow(ctx, gS.x, gS.z, 42, 0.28, gS.jump - Math.min(0, gS.pose.bob || 0));
     const psh = potShadow(pt, pS);
     if (psh) contactShadow(ctx, psh.x, psh.z, 36, psh.a, psh.lift);
     if (G && clothUp < 400) {
@@ -977,7 +990,7 @@
       a.save();
       a.globalCompositeOperation = 'source-atop';
       contactShadow(a, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
-      if (!gS.rise || gS.rise < 40) contactShadow(a, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
+      if (!gS.rise || gS.rise < 40) contactShadow(a, gS.x, gS.z, 42, 0.28, gS.jump - Math.min(0, gS.pose.bob || 0));
       if (psh) contactShadow(a, psh.x, psh.z, 36, psh.a, psh.lift);
       a.restore();
       // ...and the parts off the ground are sorted with the characters by depth
@@ -1023,7 +1036,7 @@
         a.rect(px - 400, py - 800, 800, 800 + 1);
         a.clip();
       }
-      a.translate(px, py + (gS.rise || 0));
+      a.translate(px, py + (gS.rise || 0) - gS.jump);
       const sc = 1 - gS.z * 0.0006;
       a.scale(sc * (Math.abs(gS.facing) < 0.04 ? Math.sign(gS.facing || 1) * 0.04 : gS.facing), sc);
       drawPiglet(a, gS.pose);
@@ -1119,7 +1132,7 @@
     let [px, py] = groundXY(pS.x, pS.z);
     add(px - 230, py - 420, px + 230, py + 40);
     [px, py] = groundXY(gS.x, gS.z);
-    add(px - 120, py - 300, px + 120, py + 40);
+    add(px - 120, py - 300 - gS.jump, px + 120, py + 40);
     if (!pt.held) { [px, py] = groundXY(pt.x, pt.z); add(px - 70, py - 110, px + 70, py + 20); }
     if (G) for (const v of G) { const [cx, cy] = CL.proj(v[0], v[1], v[2]); add(cx - 12, cy - 12, cx + 12, cy + 12); }
     for (const b of bees(t)) { const [bx, by] = groundXY(b.x, b.z, -b.y); add(bx - 20, by - 20, bx + 20, by + 20); }
@@ -1522,7 +1535,7 @@
     ctx.restore();
   }
 
-  function drawSubtitles(ctx, t, cues) {
+  function drawSubtitles(ctx, t, cues, lift = 0) {
     if (!cues) return;
     const cue = cues.find((c) => t >= c.start && t <= c.end);
     if (!cue || !cue.lines) return;
@@ -1530,7 +1543,7 @@
     const open = ease.outCubic(seg(t, cue.start, cue.start + 0.32, ease.linear));
     const out = seg(t, cue.end - 0.28, cue.end);
     ctx.save();
-    ctx.translate(W / 2, H - SUB.bottom - L.h / 2 - out * 6);
+    ctx.translate(W / 2, H - SUB.bottom - L.h / 2 - out * 6 - lift);
     ctx.rotate(L.tilt);
     ctx.globalAlpha = 1 - out;
     // unroll from the middle
@@ -1618,7 +1631,7 @@
       ctx.fillStyle = `rgba(242,232,210,${1 - t / 0.25})`;
       ctx.fillRect(0, 0, W, H);
     }
-    if (opts.subtitles !== false) drawSubtitles(ctx, t, opts.cues);
+    if (opts.subtitles !== false) drawSubtitles(ctx, t, opts.cues, opts.subLift || 0);
   }
 
   const PROF = {};

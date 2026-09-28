@@ -5,7 +5,7 @@ An original one-minute story after *Winnie-the-Pooh* (A. A. Milne, 1926), with P
 
 **Logline.** Pooh sets out a little honey picnic for Piglet. A gust of wind whisks the cloth away. The two friends chase it across the heath and under the pines, and the bees come along after the honey. The cloth comes down in the loveliest clearing in the Forest, and the afternoon turns out perfectly wonderful after all.
 
-**Voices.** A warm British storyteller reads the story. Pooh and Piglet speak their own short lines: Pooh slow and kind, Piglet small and a little breathless. All three voices are synthetic (Chatterbox, voiced from Kokoro prompts) and chosen so they don't echo any voice from a later adaptation.
+**Voices.** A warm British storyteller reads the story. Pooh and Piglet speak their own short lines, British too: Pooh slow and kind, Piglet small and a little breathless. All three voices are synthetic (Chatterbox, voiced from Kokoro prompts) and chosen so they don't echo any voice from a later adaptation.
 
 | # | Time | Picture | Narration / dialogue |
 |---|------|---------|----------------------|

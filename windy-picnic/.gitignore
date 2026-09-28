@@ -2,3 +2,4 @@ build/
 tools/dev/*.png
 node_modules/
 __pycache__/
+.venv-tts/

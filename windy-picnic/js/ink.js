@@ -492,6 +492,7 @@
       g.restore();
     } else g.drawImage(sil, 0, 0);
     g.drawImage(src, pad, pad);
+    WP.freeCanvas(sil);
     return { canvas: c, pad };
   }
 

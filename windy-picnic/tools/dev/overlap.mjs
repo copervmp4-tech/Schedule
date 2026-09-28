@@ -16,7 +16,7 @@ const out = await page.evaluate(({ t0, t1, step }) => {
     const cam = F.camera(t);
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
     g.setTransform(k * cam.z, 0, 0, k * cam.z, k * (960 - cam.x * cam.z), k * (540 - cam.y * cam.z));
-    g.translate(s.x + s.z * 0.18, -s.z * 0.36 + (s.rise || 0));
+    g.translate(s.x + s.z * 0.18, -s.z * 0.36 + (s.rise || 0) - (s.jump || 0));
     const sc = 1 - s.z * 0.0006, f = s.facing;
     g.scale(sc * (Math.abs(f) < 0.04 ? Math.sign(f || 1) * 0.04 : f), sc);
   };

@@ -8,7 +8,9 @@
   --honey: #c3934a;
   --moss: #7d8a4e;
   --ctl-h: 48px;
+  --vh: 100vh; /* the visible height; phones' toolbars come and go (see below) */
 }
+@supports (height: 100dvh) { :root { --vh: 100dvh; } }
 
 * { box-sizing: border-box; }
 
@@ -28,7 +30,7 @@ body {
 }
 
 .room {
-  min-height: 100%;
+  min-height: var(--vh);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -40,9 +42,10 @@ body {
 /* the film, 16:9, as large as fits with room for the controls */
 .stage {
   position: relative;
-  width: min(100%, calc((100vh - var(--ctl-h) - 96px) * 16 / 9));
+  width: min(100%, calc((var(--vh) - var(--ctl-h) - 96px) * 16 / 9));
   min-width: min(100%, 320px);
   aspect-ratio: 16 / 9;
+  touch-action: manipulation;
   background: var(--paper);
   border-radius: 3px;
   box-shadow: 0 1px 0 rgba(255, 240, 210, 0.15) inset, 0 18px 50px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -55,8 +58,6 @@ body {
   height: 100%;
 }
 
-.stage:fullscreen { width: 100vw; height: 100vh; max-width: none; border-radius: 0; background: #000; }
-.stage:fullscreen canvas { object-fit: contain; }
 
 /* cover: shown until the first press (which also unlocks sound) */
 .cover, .replay-card {
@@ -115,7 +116,7 @@ body {
 
 /* controls */
 .controls {
-  width: min(100%, calc((100vh - var(--ctl-h) - 96px) * 16 / 9));
+  width: min(100%, calc((var(--vh) - var(--ctl-h) - 96px) * 16 / 9));
   min-width: min(100%, 320px);
   height: var(--ctl-h);
   display: flex;
@@ -135,6 +136,8 @@ body {
   background: transparent;
   color: var(--paper);
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: background 0.15s ease;
 }
 .ctl svg { width: 24px; height: 24px; fill: currentColor; }
@@ -216,9 +219,99 @@ kbd {
   white-space: nowrap;
 }
 
+/* ------------------------------------------------------------ touch screens */
+
+.captions, .rotate-hint { display: none; }
+
+@media (pointer: coarse) {
+  /* fingers need bigger targets (44 px, as the platform guidelines ask) */
+  .ctl { width: 44px; height: 44px; }
+  .ctl svg { width: 26px; height: 26px; }
+  .scrub { height: 44px; }
+  .scrub::before, .scrub-fill { height: 5px; }
+  .scrub-fill::after { width: 20px; height: 20px; right: -10px; }
+  .keys { display: none; }
+}
+
 @media (max-width: 560px) {
   .time { min-width: 0; font-size: 13px; }
-  .ctl { width: 36px; height: 36px; }
-  #full { display: none; }
-  .colophon { font-size: 12px; }
+  .controls { gap: 2px; padding: 0 2px; }
+  .colophon { font-size: 12px; padding: 0 12px; }
 }
+
+/* a phone held upright: the film runs edge to edge, and the subtitles are set below it at a
+   size you can read (inside the picture they would be a few pixels high) */
+.room.narrow { padding: max(8px, env(safe-area-inset-top)) 0 max(12px, env(safe-area-inset-bottom)); gap: 8px; justify-content: flex-start; }
+.room.narrow .stage { width: 100%; min-width: 0; border-radius: 0; }
+.room.narrow .controls { width: 100%; min-width: 0; padding: 0 max(6px, env(safe-area-inset-left)); }
+.room.narrow.show-captions .captions { display: flex; }
+.room.narrow.portrait .rotate-hint { display: flex; }
+
+.captions {
+  width: 100%;
+  min-height: 3.4em;
+  padding: 0 18px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  font-size: 19px;
+  line-height: 1.3;
+  color: var(--paper);
+}
+.captions .line { max-width: 34em; }
+.captions .w { color: rgba(242, 232, 210, 0.38); transition: color 0.12s ease; }
+.captions .w.said { color: var(--paper); }
+.captions .w.pooh { font-style: italic; }
+.captions .w.pooh.said { color: #e6b877; }
+.captions .w.piglet { font-style: italic; }
+.captions .w.piglet.said { color: #bccb86; }
+
+.rotate-hint {
+  margin: 4px 0 0;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-style: italic;
+  color: rgba(242, 232, 210, 0.6);
+}
+.rotate-hint svg { width: 20px; height: 20px; fill: currentColor; flex: none; }
+
+/* immersive: the film fills the screen (full screen, or a phone turned sideways) and the
+   controls float over its foot, fading away while it plays */
+.room.immersive {
+  padding: 0;
+  gap: 0;
+  background: #000;
+  min-height: var(--vh);
+  justify-content: center;
+}
+.room.immersive .stage {
+  width: min(100vw, calc(var(--vh) * 16 / 9));
+  min-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.room.immersive .controls {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: min(100vw, calc(var(--vh) * 16 / 9));
+  min-width: 0;
+  height: auto;
+  min-height: 60px;
+  padding: 10px max(10px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  background: linear-gradient(to top, rgba(18, 13, 8, 0.78), rgba(18, 13, 8, 0));
+  transition: opacity 0.35s ease;
+}
+.room.immersive.idle .controls { opacity: 0; pointer-events: none; }
+.room.immersive.idle { cursor: none; }
+.room.immersive .colophon, .room.immersive .rotate-hint { display: none; }
+.room.immersive:not(.narrow) .captions { display: none; }
+
+/* full screen: the real thing where the browser allows it, otherwise (iPhone Safari) the
+   page itself covers the screen */
+.room:fullscreen { width: 100vw; height: 100vh; }
+.room.pseudo-full { position: fixed; inset: 0; z-index: 100; overflow: hidden; }

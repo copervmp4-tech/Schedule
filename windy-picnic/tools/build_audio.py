@@ -16,7 +16,7 @@ from scipy.signal import butter, sosfilt
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'audio'))
 import sampler as S
-import sfx as X
+import foley as X  # recorded CC0 foley; falls back to the synthesised effects in sfx.py
 import score
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -292,7 +292,7 @@ def main():
     stems = {
         'narration': NAR * db(0.0),
         'music': music * db(2.5) * duck_music[:, None],
-        'sfx': sfx * db(-1.0),
+        'sfx': sfx * db(0.5),  # recorded foley: +1.5 dB keeps the balance the synthesised effects had
         'bees': bees * db(-14.0) * duck_amb[:, None],
         'ambience': amb * duck_amb[:, None],
     }

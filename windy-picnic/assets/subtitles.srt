@@ -1,50 +1,50 @@
 1
-00:00:05,200 --> 00:00:10,020
+00:00:05,200 --> 00:00:10,060
 One breezy morning, Pooh laid out a picnic:
 a cloth, a pot of honey,
 
 2
-00:00:10,080 --> 00:00:13,320
+00:00:10,120 --> 00:00:13,280
 and a space just the size of a Piglet!
 
 3
-00:00:14,420 --> 00:00:16,720
+00:00:14,420 --> 00:00:16,800
 “For me?” asked Piglet.
 
 4
-00:00:16,920 --> 00:00:19,200
+00:00:16,920 --> 00:00:19,020
 “For us,” said Pooh.
 
 5
-00:00:19,650 --> 00:00:23,410
+00:00:19,650 --> 00:00:23,210
 But the wind, it seemed,
 wanted to come too.
 
 6
-00:00:27,150 --> 00:00:30,570
+00:00:27,150 --> 00:00:30,310
 So off they went, over the heather
 and under the pines,
 
 7
-00:00:30,630 --> 00:00:34,030
+00:00:30,370 --> 00:00:33,370
 with the bees close behind,
 just in case.
 
 8
-00:00:35,450 --> 00:00:38,930
+00:00:35,450 --> 00:00:38,970
 “Perhaps…” said Pooh,
 “it knows somewhere nicer.”
 
 9
-00:00:43,050 --> 00:00:44,510
+00:00:43,050 --> 00:00:44,630
 It did.
 
 10
-00:00:47,550 --> 00:00:50,610
+00:00:47,550 --> 00:00:50,350
 It wasn’t quite the picnic Pooh had planned.
 
 11
-00:00:51,200 --> 00:00:55,720
+00:00:51,200 --> 00:00:55,460
 But with Piglet beside him,
 it was a perfectly wonderful afternoon.
 

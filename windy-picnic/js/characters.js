@@ -143,7 +143,7 @@
    * strokes to a handful of image draws, which is what keeps playback smooth.
    */
   const CACHE = new Map();
-  const CRES = 2.6;
+  const CRES = WP.lowMem ? 2.0 : 2.6;
   const q = (v, step) => Math.round(v / step) * step;
   const skey = (sh) => sh ? sh.map((v) => v.toFixed(1)).join(',') : '-';
   function cachedPart(ctx, key, makeS, st, extra) {

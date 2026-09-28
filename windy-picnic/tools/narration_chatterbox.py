@@ -26,21 +26,21 @@ OUT = os.path.join(ROOT, "assets", "audio", "narration", "segments")
 # The narrator's short tags ("asked Piglet.") come out flat when spoken alone, so they are
 # read inside their whole line (`context`) and cut out at the silences either side (`cut`, s).
 SEGMENTS = {
-    "L0": dict(speaker="n", text="In which Pooh plans a picnic, and the wind comes too.", ex=0.7, cfg=0.3, seed=2),
-    "L1a": dict(speaker="n", text="One breezy morning, Pooh laid out a picnic: a cloth, a pot of honey,", ex=0.85, cfg=0.3, seed=1),
-    "L1b": dict(speaker="n", text="and a space just the size of a Piglet!", ex=0.6, cfg=0.4, seed=1),
-    "L2a": dict(speaker="piglet", text="For me?", ex=0.7, cfg=0.4, seed=2),
-    "L2b": dict(speaker="n", text="asked Piglet.", context='"For me?" asked Piglet.', cut=(0.976, 2.0), ex=0.5, cfg=0.4, seed=1),
-    "L3a": dict(speaker="pooh", text="For us.", ex=0.5, cfg=0.3, seed=2),
-    "L3b": dict(speaker="n", text="said Pooh.", context='"For us," said Pooh.', cut=(0.938, 1.8), ex=0.7, cfg=0.3, seed=3),
-    "L4": dict(speaker="n", text="But the wind, it seemed, wanted to come too.", ex=0.8, cfg=0.3, seed=1),
-    "L5": dict(speaker="n", text="So off they went, over the heather and under the pines, with the bees close behind, just in case.", ex=0.8, cfg=0.4, seed=2),
-    "L6a": dict(speaker="pooh", text="Perhaps...", ex=0.7, cfg=0.3, seed=2),
-    "L6b": dict(speaker="n", text="said Pooh,", context='"Perhaps," said Pooh, "it knows somewhere nicer."', cut=(0.936, 1.6), ex=0.5, cfg=0.4, seed=1),
-    "L6c": dict(speaker="pooh", text="it knows somewhere nicer.", ex=0.6, cfg=0.5, seed=2),
-    "L7": dict(speaker="n", text="It did.", ex=0.8, cfg=0.3, seed=1),
-    "L8": dict(speaker="n", text="It wasn't quite the picnic Pooh had planned.", ex=0.7, cfg=0.3, seed=1),
-    "L9": dict(speaker="n", text="But with Piglet beside him, it was a perfectly wonderful afternoon.", ex=0.9, cfg=0.3, seed=2),
+    "L0": dict(speaker="n", text="In which Pooh plans a picnic, and the wind comes too.", ex=0.7, cfg=0.6, seed=12),
+    "L1a": dict(speaker="n", text="One breezy morning, Pooh laid out a picnic: a cloth, a pot of honey,", ex=0.85, cfg=0.6, seed=1),
+    "L1b": dict(speaker="n", text="and a space just the size of a Piglet!", ex=0.6, cfg=0.9, seed=1),
+    "L2a": dict(speaker="piglet", text="For me?", ex=0.7, cfg=0.75, seed=6),
+    "L2b": dict(speaker="n", text="asked Piglet.", context='"For me?" asked Piglet.', cut=(0.96, 1.72), ex=0.5, cfg=0.6, seed=1),
+    "L3a": dict(speaker="pooh", text="For us.", ex=0.5, cfg=0.9, seed=12),
+    "L3b": dict(speaker="n", text="said Pooh.", context='"For us," said Pooh.', cut=(0.82, 1.43), ex=0.7, cfg=0.75, seed=13),
+    "L4": dict(speaker="n", text="But the wind, it seemed, wanted to come too.", ex=0.8, cfg=0.6, seed=1),
+    "L5": dict(speaker="n", text="So off they went, over the heather and under the pines, with the bees close behind, just in case.", ex=0.8, cfg=0.9, seed=12),
+    "L6a": dict(speaker="pooh", text="Perhaps...", ex=0.7, cfg=0.9, seed=3),
+    "L6b": dict(speaker="n", text="said Pooh,", context='"Perhaps," said Pooh, "it knows somewhere nicer."', cut=(0.72, 1.45), ex=0.5, cfg=0.6, seed=1),
+    "L6c": dict(speaker="pooh", text="it knows somewhere nicer.", ex=0.6, cfg=0.6, seed=2),
+    "L7": dict(speaker="n", text="It did.", ex=0.8, cfg=0.6, seed=1),
+    "L8": dict(speaker="n", text="It wasn't quite the picnic Pooh had planned.", ex=0.7, cfg=0.6, seed=1),
+    "L9": dict(speaker="n", text="But with Piglet beside him, it was a perfectly wonderful afternoon.", ex=0.9, cfg=0.9, seed=12),
 }
 PROMPT_FOR = {"n": "narrator", "pooh": "pooh", "piglet": "piglet"}
 SPEAKER = {"n": "narrator", "pooh": "pooh", "piglet": "piglet"}

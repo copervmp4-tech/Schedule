@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f1a14">
   <title>The Windy Picnic</title>
   <meta name="description" content="An original one-minute animated short with Winnie-the-Pooh and Piglet, after A. A. Milne and E. H. Shepard (1926).">
   <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <main class="room">
+  <main class="room" id="room">
     <section class="stage" id="stage" aria-label="The Windy Picnic, animated short">
       <canvas id="film" width="1920" height="1080" aria-hidden="true"></canvas>
 
@@ -55,12 +56,25 @@
       </button>
     </nav>
 
+    <!-- on a phone held upright the film is small, so the subtitles are set here, full size -->
+    <div class="captions" id="captions" aria-hidden="true"></div>
+    <p class="rotate-hint" id="rotateHint">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 2h7A1.5 1.5 0 0 1 17 3.5v7h-2V4H9v16h3v2H8.5A1.5 1.5 0 0 1 7 20.5v-17A1.5 1.5 0 0 1 8.5 2zm6 13h6a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5zm.5 2v3h5v-3z"/></svg>
+      Turn your phone sideways for the whole picture
+    </p>
+
     <footer class="colophon">
       <p><em>The Windy Picnic</em> — an original short after <em>Winnie-the-Pooh</em> by A. A. Milne, with decorations by E. H. Shepard (1926).
-        <a href="CREDITS.md">Credits &amp; sources</a> · keys: <kbd>Space</kbd> play/pause, <kbd>R</kbd> replay, <kbd>C</kbd> subtitles, <kbd>F</kbd> full screen, <kbd>←</kbd>/<kbd>→</kbd> seek</p>
+        <a href="CREDITS.md">Credits &amp; sources</a><span class="keys"> · keys: <kbd>Space</kbd> play/pause, <kbd>R</kbd> replay, <kbd>C</kbd> subtitles, <kbd>F</kbd> full screen, <kbd>←</kbd>/<kbd>→</kbd> seek</span></p>
     </footer>
   </main>
 
+  <script>
+    // phones and small tablets: keep less painted detail in memory (see js/util.js)
+    window.WP_OPTS = {
+      lowMem: (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) <= 1100) || (navigator.deviceMemory || 8) <= 4,
+    };
+  </script>
   <script src="js/util.js"></script>
   <script src="js/ink.js"></script>
   <script src="js/characters.js"></script>

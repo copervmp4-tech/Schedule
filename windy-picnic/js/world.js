@@ -12,10 +12,10 @@
    ink + wash on a paper cut-out with a soft shadow. */
 (function () {
   const WP = window.WP;
-  const { PAL, rng, lerp, clamp, TAU, makeCanvas, spline, pathFrom, rgba, fbm1, noise1 } = WP;
+  const { PAL, rng, lerp, clamp, TAU, makeCanvas, freeCanvas, spline, pathFrom, rgba, fbm1, noise1 } = WP;
   const ink = WP.ink;
 
-  const RES = 2.0; // sprite supersampling so close-ups stay crisp
+  const RES = WP.lowMem ? 1.5 : 2.0; // sprite supersampling so close-ups stay crisp
 
   /* ------------------------------------------------------------ sprite core */
 
@@ -50,6 +50,7 @@
     if (o.onEdge && (x0 === 0 || y0 === 0 || x1 === big.width - 1 || y1 === big.height - 1)) o.onEdge();
     const c = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
     c.getContext('2d').drawImage(big, -x0, -y0);
+    freeCanvas(big);
     ax = (ax + m) - x0 / res;
     ay = (ay + m) - y0 / res;
     w = c.width / res;
@@ -59,6 +60,7 @@
       const cu = ink.cutout(c, { margin: (o.margin ?? 3) * res, shadow: o.shadow === null ? null : { x: 4 * res, y: 6 * res, blur: 9 * res, a: o.shadowA ?? 0.22 }, paper: o.paper });
       img = cu.canvas;
       pad = cu.pad;
+      freeCanvas(c);
     }
     return { img, ax: ax * res + pad, ay: ay * res + pad, res, w, h };
   }

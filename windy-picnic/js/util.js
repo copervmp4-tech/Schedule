@@ -174,6 +174,13 @@
     c.height = Math.max(1, Math.ceil(h));
     return c;
   }
+  /** Give a scratch canvas's memory back at once (some browsers, Safari especially, count
+      canvas memory until garbage collection, and stop drawing when over their limit). */
+  function freeCanvas(c) {
+    if (c) c.width = c.height = 0;
+  }
+  // Phones and small tablets keep less painted detail in memory (set by the page before loading).
+  const lowMem = !!(window.WP_OPTS && window.WP_OPTS.lowMem);
 
   function rgba(hex, a = 1) {
     const h = hex.replace('#', '');
@@ -215,6 +222,6 @@
 
   Object.assign(WP, {
     clamp, lerp, invLerp, smooth, smoother, TAU, ease, seg, wobble, track, rng, hash1, hashf,
-    noise1, fbm1, makeNoise2, spline, pathFrom, ellipsePts, transformPts, rotPts, makeCanvas, rgba, mixHex, PAL,
+    noise1, fbm1, makeNoise2, spline, pathFrom, ellipsePts, transformPts, rotPts, makeCanvas, freeCanvas, lowMem, rgba, mixHex, PAL,
   });
 })();

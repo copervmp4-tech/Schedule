@@ -14,7 +14,7 @@ const out = await page.evaluate(() => {
     const p = F.pooh(t), g = F.piglet(t), q = F.pot(t, p), c = F.camera(t);
     add('pooh.', { x: p.x, z: p.z, facing: p.facing }); add('pooh.', p.pose);
     o['pooh.hold'] = p.hold === 'pot' ? 1 : p.hold === 'bundle' ? 2 : 0;
-    add('piglet.', { x: g.x, z: g.z, facing: g.facing, rise: g.rise || 0 }); add('piglet.', g.pose);
+    add('piglet.', { x: g.x, z: g.z, facing: g.facing, rise: g.rise || 0, jump: g.jump || 0 }); add('piglet.', g.pose);
     o['pot.held'] = q.held ? 1 : 0;
     { const [x, y] = F.potWorld(t); if (t < 45 || t > 45.02) { o['potW.x'] = x; o['potW.y'] = y; } }
     add('cam.', { x: c.x, y: c.y, z: c.z * 100 });

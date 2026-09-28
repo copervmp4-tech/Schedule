@@ -15,7 +15,7 @@
 - All artwork. Characters, props, scenery, paper, ink and watercolour are drawn procedurally in JavaScript (`js/`), after studying Shepard's 1926 drawings. None of his illustrations are traced or reproduced.
 - Animation, camera and choreography.
 - The musical score (`tools/audio/score.py`), composed for the film's timings.
-- All sound effects and ambience: wind, leaves, cloth, footsteps, the ceramic pot, bees, birdsong and paper. They are synthesised from noise and oscillators in `tools/audio/sfx.py`.
+- The sound design: where every effect falls and how loud it is, the wind (synthesised to follow the film's own wind curve, `tools/audio/sfx.py`) and the honey's *plip*.
 - The mix and master (`tools/build_audio.py`).
 
 ## Third-party components
@@ -27,6 +27,23 @@
 | VSCO-2 Community Edition sample library | Versilian Studios / Sam Gossner | CC0 1.0 | Instrument samples for the score: harp, clarinet, bassoon, flute, string sections (arco and pizzicato), contrabass pizzicato, glockenspiel |
 | IM Fell English, IM Fell English SC | Igino Marini (the Fell Types) | SIL OFL 1.1 | Title page, *The End*, the pot label and door board |
 | EB Garamond | Georg Duffner, Octavio Pardo | SIL OFL 1.1 | Subtitles and page text |
+| Impact Sounds, RPG Audio | Kenney (kenney.nl) | CC0 1.0 | Footsteps in grass, cloth, paper (the page turn), a ceramic knock (the honey pot), a soft fall (Pooh's bump) |
+
+### Recorded sounds from Freesound (all CC0 1.0)
+
+Cut and levelled for the film by `tools/audio/foley_prep.py`; the pieces are in `assets/audio/foley/`. CC0 asks for no credit, but here it is with thanks:
+
+| Sound | Recordist | Used for |
+|------|--------|-----|
+| [Single bumblebee.WAV](https://freesound.org/s/575899/) | VMan533 | Bees |
+| [Bumblebee In Lavender](https://freesound.org/s/397113/) | Kinoton | Bees |
+| [Woodland Atmos 05](https://freesound.org/s/640188/), [Woodland Atmos 02](https://freesound.org/s/640186/) | apintofmild | Birds on the heath and under the pines |
+| [Numerous birds in Essex Woodland](https://freesound.org/s/518671/) | jackmichaelking | Birds in the clearing |
+| [Blackbird (isolated)](https://freesound.org/s/811988/) | richwise | The blackbird's song |
+| [Forest, close up of trees rustling in the wind](https://freesound.org/s/523389/) | Anya_Media | Leaves in the wind |
+| [Rustling Grass](https://freesound.org/s/364712/) | alegemaate | Piglet in the long grass |
+| [Cloth Flapping On A Clothesline Gently](https://freesound.org/s/330639/) / [Thickly](https://freesound.org/s/330638/) | leonelmail | The cloth lifting, flying, snagged and drifting |
+| [Fabric flaps](https://freesound.org/s/580967/) | PelicanPolice | Shaking out the cloth |
 
 The font licence texts are in `assets/fonts/`.
 
@@ -37,6 +54,7 @@ The font licence texts are in `assets/fonts/`.
 - Python: NumPy, SciPy, soundfile and pyloudnorm.
 - faster-whisper, for word timings and to check that the narration reads back exactly.
 - torchaudio SQUIM, as one input to voice selection.
+- The CommonAccent English accent classifier (Juan Zuluaga-Gomez et al., SpeechBrain, MIT) and Praat via parselmouth (GPL-3.0), to check the British accent.
 
 ## Rights note (not legal advice)
 
