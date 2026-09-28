@@ -2,6 +2,11 @@
 <link rel="stylesheet" href="../../css/fonts.css">
 <style>body{margin:0;background:#222}</style></head><body>
 <canvas id="c" width="1920" height="1080"></canvas>
+<script>
+  // frames.html?vertical renders the 9:16 film
+  window.WP_OPTS = { vertical: /vertical/.test(location.search) };
+  if (window.WP_OPTS.vertical) { const c = document.getElementById('c'); c.width = 1080; c.height = 1920; }
+</script>
 <script src="../../js/util.js"></script><script src="../../js/ink.js"></script><script src="../../js/characters.js"></script>
 <script src="../../js/props.js"></script><script src="../../js/world.js"></script><script src="../../js/cloth.js"></script>
 <script src="../../js/film.js"></script><script src="../../js/cues.js"></script>

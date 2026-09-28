@@ -8,6 +8,7 @@ Pooh lays out a little honey picnic for Piglet. A gust whisks the cloth away. Th
 
 - **Length:** 60 s · 1920 × 1080 (16:9) · narration, original score, sound effects and English subtitles
 - **Film file:** [`export/the-windy-picnic.mp4`](export/the-windy-picnic.mp4) (H.264 60 fps + AAC)
+- **Vertical film, for phones:** [`export/the-windy-picnic-vertical.mp4`](export/the-windy-picnic-vertical.mp4) (1080 × 1920, 9:16, same story and soundtrack; [storyboard](docs/storyboard-vertical.jpg))
 
 ## Watch it
 
@@ -43,6 +44,25 @@ Subtitles appear on a paper caption slip that unrolls, and each word inks in as 
 - **Full screen:** works on iPhone too, where Safari doesn't allow real full screen; there the page covers the screen instead.
 - **Silent switch:** the film can be heard even with the iPhone's ring/silent switch on (Safari 17+).
 - **Memory:** phones keep less painted detail in memory (about 180 MB instead of 240 MB of canvases), which keeps it well inside mobile browsers' limits.
+
+## The vertical film
+
+The 9:16 version isn't the wide film cropped or boxed. It's drawn again for a phone held upright, by the same renderer (`frames.html?vertical`, `WP_OPTS.vertical`), with its own camera and page layouts:
+
+- **Every shot is reframed.** The characters' feet sit about two-thirds of the way down the frame, with sky and treetops above.
+  - The opening stands Mr Sanders' tall tree beside Pooh.
+  - When the gust comes, the camera sweeps up after the cloth into the sky.
+  - In the chase, the camera frames itself from where Pooh, Piglet and the cloth are, and brings the cloth in when Piglet leaps for it.
+  - The last pull-back ends with the old trees framing the clearing.
+- **The ground in front of them has its own scattering** of heather, grass and flowers (the wide film never sees that far down), and the near grass is pinned to the foot of the frame.
+- **The pages are set for the shape.** The title runs on two lines, and the closing plate is a tall print with *The End* beneath it.
+- **Subtitles sit about three-quarters of the way down,** clear of the buttons and captions that phone apps lay over the bottom of a vertical video.
+
+It was checked the same way as the wide film:
+
+- **Framing:** no character cut by the frame edge.
+- **Camera:** it moves smoothly except at the two cuts.
+- **The wide film is untouched:** its frames render pixel for pixel as before.
 
 ## What's in the folder
 
@@ -130,6 +150,7 @@ node tools/dev/export_audio_data.mjs      # footsteps, wind, bee positions from 
 git clone --filter=blob:none --sparse https://github.com/sgossner/VSCO-2-CE /tmp/vsco   # CC0 samples
 VSCO_DIR=/tmp/vsco python3 tools/build_audio.py
 node tools/export_video.mjs               # needs Playwright + ffmpeg with libx264
+node tools/export_video.mjs --vertical 1  # the 9:16 film for phones
 ```
 
 For the VSCO sample folders to check out sparsely, see `tools/build_audio.py`. `tools/dev/` holds the review harnesses used during production: frame grabs, filmstrips, pop and collision scans, profiling and player tests.

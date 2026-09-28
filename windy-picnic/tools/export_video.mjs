@@ -1,6 +1,7 @@
 // Render the film frame by frame in headless Chromium and encode an MP4 with the soundtrack.
 //
 //   node tools/export_video.mjs [--fps 60] [--workers 4] [--out export/the-windy-picnic.mp4]
+//   node tools/export_video.mjs --vertical 1     (the 9:16 film for phones: export/the-windy-picnic-vertical.mp4)
 //
 // Every frame is drawn by the same renderer the player uses (WP.film.render), at an exact
 // time t = i / fps, so picture and sound line up sample-for-frame. Needs Playwright's
@@ -14,8 +15,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, arr) => (v.startsWith('--') ? a.concat([[v.slice(2), arr[i + 1]]]) : a), []));
 const FPS = +(args.fps || 60);
 const WORKERS = +(args.workers || 4);
-const OUT = path.resolve(ROOT, args.out || 'export/the-windy-picnic.mp4');
-const FRAMES = path.join(ROOT, 'build', 'frames');
+const VERT = !!args.vertical;
+const [VW, VH] = VERT ? [1080, 1920] : [1920, 1080];
+const OUT = path.resolve(ROOT, args.out || (VERT ? 'export/the-windy-picnic-vertical.mp4' : 'export/the-windy-picnic.mp4'));
+const FRAMES = path.join(ROOT, 'build', VERT ? 'frames-vertical' : 'frames');
 const DUR = 60;
 const N = Math.round(DUR * FPS);
 
@@ -30,12 +33,12 @@ fs.mkdirSync(FRAMES, { recursive: true });
 for (const f of fs.readdirSync(FRAMES)) fs.unlinkSync(path.join(FRAMES, f));
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
-const page = `file://${path.join(ROOT, 'tools', 'dev', 'frames.html')}`;
+const page = `file://${path.join(ROOT, 'tools', 'dev', 'frames.html')}${VERT ? '?vertical' : ''}`;
 const t0 = Date.now();
 
 async function worker(w) {
   const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
-  const p = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  const p = await browser.newPage({ viewport: { width: VW, height: VH } });
   p.on('pageerror', (e) => console.error(`[w${w}] pageerror`, e.message));
   await p.goto(page);
   await p.waitForFunction(() => window.ready === true, null, { timeout: 180000 });

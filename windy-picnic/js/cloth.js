@@ -286,5 +286,15 @@
     ink.line(ctx, [[-24, 7], [4, 9], [30, 5]], { w: 1.1, seed: 903, alpha: 0.7 });
   }
 
-  WP.cloth = { state, draw, pieces, drawBundle, proj, MEADOW, CLEARING, SNAG, NU, NV };
+  /** Where the cloth is heading (its smooth path, without the flapping): for the camera. */
+  function center(t) {
+    if (t < 9.8) return [MEADOW.x, 0, MEADOW.z];
+    if (t < 23.05) return [MEADOW.x, 0, MEADOW.z];
+    if (t < 33.75) return track(FLY, t);
+    if (t < 35.0) return track(FLY, 33.75);
+    if (t < 42.8) return track(DRIFT, t);
+    return [CLEARING.x, 0, CLEARING.z];
+  }
+
+  WP.cloth = { state, draw, pieces, drawBundle, proj, center, MEADOW, CLEARING, SNAG, NU, NV };
 })();

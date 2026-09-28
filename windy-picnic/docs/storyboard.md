@@ -4,6 +4,8 @@
 
 Frames taken from the finished film. See [script.md](script.md) for the full shot list with narration.
 
+The vertical (9:16) film, reframed shot by shot for phones: [storyboard-vertical.jpg](storyboard-vertical.jpg).
+
 | Time | Beat | Camera |
 |------|------|--------|
 | 0:00–0:04 | The title page inks itself in; the narrator reads the chapter heading. | Static page |

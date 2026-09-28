@@ -7,7 +7,10 @@
   const { drawPooh, drawPiglet, walkCycle, blinkAt } = WP.chars;
   const { drawPot, drawBee, drawLeaf } = WP.props;
   const CL = WP.cloth;
-  const W = 1920, H = 1080;
+  // The film is framed twice: 16:9 (1920x1080), and 9:16 for phones held upright (1080x1920),
+  // which has its own camera and page layouts (set by the page: WP_OPTS.vertical).
+  const VERT = !!(window.WP_OPTS && window.WP_OPTS.vertical);
+  const W = VERT ? 1080 : 1920, H = VERT ? 1920 : 1080;
   const DUR = 60;
 
   /* ================================================================ timing */
@@ -39,6 +42,7 @@
   /* ================================================================ camera */
 
   function camera(t) {
+    if (VERT) return cameraV(t);
     let c;
     if (t < T.gust) {
       c = track([
@@ -66,6 +70,70 @@
       const k = track([[45, [4142, 2.2]], [51.0, [4148, 2.34], ease.inOutSine], [57.2, [4165, 1.1], ease.inOutCubic], [60, [4165, 1.08]]], t);
       // hold the picnic just above the subtitle band while pulling back
       c = [k[0], -26 - 262 / k[1] - 24 * seg(t, 53, 57.2), k[1]];
+    }
+    return { x: c[0], y: c[1], z: c[2] };
+  }
+
+  /* The vertical (9:16) film has its own camera: the same story, framed for a phone held
+     upright. Each shot keeps the characters' feet about two-thirds of the way down the frame,
+     with sky and treetops above and the subtitles below, clear of the phone's own
+     buttons at the very bottom. */
+  // camera for a ground line at world y gy sitting at fraction f of the frame height
+  const frameV = (x, gy, z, f = 0.64) => [x, gy - (f * H - H / 2) / z, z];
+  const softMin = (a, b, k) => -k * Math.log(Math.exp(-a / k) + Math.exp(-b / k));
+  const softMax = (a, b, k) => -softMin(-a, -b, k);
+  /** The chase, framed from where everyone is: Pooh at the left, Piglet ahead, and the cloth
+      too once it dips near enough to leap for. All limits are soft so the camera never jerks. */
+  function chaseV(t) {
+    const px = poohX(t) + 8, gx = pigletX(t) + 10;
+    // where the cloth is, averaged over a moment, so its swoops don't jog the camera
+    const c = [0, 0.15, 0.3].reduce((a, d) => [a[0] + (CL.center(t - d)[0] + CL.center(t + d)[0]) / 2 / 3], [0]);
+    const left = px - 140;
+    let right = gx + 120;
+    const near = smooth(clamp(1 - (c[0] - right) / 600));
+    right = lerp(right, softMax(right, c[0] + 190, 30), near);
+    const z = softMax(softMin(1080 / (right - left), 1.9, 0.08), 1.3, 0.08);
+    return frameV((left + right) / 2, -16, z, 0.62);
+  }
+  function cameraV(t) {
+    const F = frameV;
+    let c;
+    if (t < T.gust) {
+      c = track([
+        // Mr Sanders' tall tree and Pooh with his bundle, then across with the cloth as it lands
+        [0, F(-40, -23, 1.38)], [5.2, F(-40, -23, 1.38)],
+        [7.2, F(20, -23, 1.42), ease.inOutSine],
+        [9.4, F(300, -23, 1.8), ease.inOutSine],
+        [11.6, F(345, -23, 1.9), ease.inOutSine],
+        // making room for Piglet as he pops up from the long grass, then the two of them
+        [12.3, F(410, -26, 1.9), ease.inOutSine], [13.5, F(412, -26, 1.92), ease.inOutSine],
+        [14.6, F(366, -26, 2.25), ease.inOutSine],
+        [16.0, F(362, -26, 2.35), ease.inOutSine], [19.2, F(366, -26, 2.42), ease.inOutSine],
+        [22.9, F(395, -26, 2.15), ease.inOutSine], [23.05, F(395, -26, 2.15)],
+      ], t);
+    } else if (t < T.cut1) {
+      // up and away with the cloth, into the sky
+      // one smooth sweep (a curve through the air, not two moves joined)
+      const k = ease.inOutCubic(seg(t, 23.05, 25.2, ease.linear));
+      const P0 = F(395, -26, 2.15), P1 = [760, -60, 1.35], P2 = [1250, -336, 1.25];
+      c = P0.map((v, i) => (1 - k) * (1 - k) * v + 2 * (1 - k) * k * P1[i] + k * k * P2[i]);
+    } else if (t < 26.6) {
+      c = track([[25.2, F(360, -26, 2.55, 0.62)], [26.6, F(372, -26, 2.45, 0.62), ease.inOutSine]], t);
+    } else if (t < 33.4) {
+      const k = seg(t, 26.6, 27.7, ease.inOutSine), a = F(372, -26, 2.45, 0.62), b = chaseV(t);
+      c = [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+    } else if (t < 35.3) {
+      // the snag: Pooh, Piglet and the cloth flapping on the gorse
+      const k = seg(t, 33.4, 34.4, ease.inOutSine), a = chaseV(Math.min(t, 34.0)), b = F(3410, -20, 1.95, 0.62);
+      c = [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+    } else if (t < 39.2) {
+      c = track([[35.3, F(3410, -20, 1.95, 0.62)], [36.0, F(3365, -20, 2.2), ease.inOutSine], [38.9, F(3360, -20, 2.25), ease.inOutSine], [39.2, F(3362, -20, 2.15)]], t);
+    } else if (t < T.cut2) {
+      // after the drifting cloth, high over their heads, down into the clearing
+      c = track([[39.2, F(3362, -20, 2.15)], [39.6, F(3380, -20, 2.05), ease.inOutSine], [40.4, F(3700, -20, 1.35, 0.66), ease.inOutSine], [42.7, F(4015, -24, 1.8), ease.inOutSine], [43.6, F(3995, -22, 1.9), ease.inOutSine], [45, F(4020, -22, 1.85), ease.inOutSine]], t);
+    } else {
+      // the picnic, close; then drawing back until the two old trees frame the clearing
+      c = track([[45, F(4168, -23, 2.55, 0.58)], [51.0, F(4160, -23, 2.7, 0.58), ease.inOutSine], [57.2, F(4195, -23, 1.03, 0.64), ease.inOutCubic], [60, F(4195, -23, 1.01, 0.64)]], t);
     }
     return { x: c[0], y: c[1], z: c[2] };
   }
@@ -675,7 +743,7 @@
       if (age < 0 || age > l.life) continue;
       const travel = (windInt(t) - windInt(l.t0)) * l.speed;
       const x = l.x0 + travel;
-      const y = l.y0 + age * l.fall + Math.sin(age * 2.3 + l.ph) * 40;
+      const y = l.y0 * (H / 1080) + age * l.fall + Math.sin(age * 2.3 + l.ph) * 40;
       if (x < -60 || x > W + 60) continue;
       const flip = Math.cos(age * l.flip + l.ph);
       drawLeaf(ctx, x, y, age * l.spin + l.ph, flip, l.size * 1.3, l.col, 0.95);
@@ -684,7 +752,7 @@
       for (const l of LEAVES.clearing) {
         const age = t - l.t0;
         if (age < 0 || age > 14) continue;
-        const x = l.x0 + Math.sin(age * 0.9 + l.ph) * l.sway + age * 12;
+        const x = l.x0 * (W / 1920) + Math.sin(age * 0.9 + l.ph) * l.sway + age * 12;
         const y = l.y0 + age * l.fall;
         if (y > H + 40) continue;
         drawLeaf(ctx, x, y, Math.sin(age * 1.2 + l.ph) * 1.2 + l.ph, Math.cos(age * l.flip + l.ph), l.size * 1.2, l.col, 0.9);
@@ -758,6 +826,21 @@
     // two old trees that frame the clearing
     L.ground.push({ s: S.bigTrunkL, x: 3640, y: -118, sc: 0.8, flip: 1, z: 330 });
     L.ground.push({ s: S.bigTrunkR, x: 4660, y: -128, sc: 0.85, flip: 1, z: 360 });
+    // The vertical film sees far more of the ground in front of the characters: scatter low
+    // heather, grass and (in the clearing) flowers there, never tall enough to reach their
+    // feet. (Its own random stream, so the 16:9 film's scenery is untouched.)
+    if (VERT) {
+      const R2 = rng(5151);
+      const pick2 = (arr) => arr[Math.floor(R2() * arr.length)];
+      for (let x = -600; x < 5200; x += 70 + R2() * 140) {
+        const z = -140 - R2() * 330, r = R2(), sc = 0.9 + R2() * 0.5, fl = R2() < 0.5 ? 1 : -1;
+        const [px, py] = back(x, z);
+        const inClearing = x > 3800 && x < 4600;
+        const sp = inClearing && r < 0.6 ? pick2(S.flowers) : r < 0.55 ? pick2(S.heather) : pick2(S.grass);
+        if (py - (sp.ay / sp.res) * sc < -6) continue; // would reach up to the characters' feet
+        L.ground.push({ s: sp, x: px, y: py, sc, flip: fl, sway: 0.6, z });
+      }
+    }
     L.ground.sort((a, b) => (b.z ?? 0) - (a.z ?? 0));
     // things in front of the characters on the ground plane
     const [gx, gy] = back(592, 118);
@@ -775,6 +858,8 @@
     for (const X of [1150, 1650, 2150, 2700, 3150]) L.fg.push({ s: pick(S.fgBracken), x: X * 1.35, y: 330, sc: 1.6, flip: flip(), sway: 1 });
     return L;
   }
+
+  const FG_BELOW = 150; // vertical film: the near grass's roots, this far below the frame
 
   function drawLayer(ctx, items, xf, t, p, cullPad = 400) {
     const w = wind(t);
@@ -820,9 +905,10 @@
     // an ink frame, as on an old title page
     g.strokeStyle = rgba(PAL.ink, 0.8);
     g.lineWidth = 1.4;
-    g.strokeRect(150, 110, W - 300, H - 220);
+    const mx = VERT ? 80 : 150, my = VERT ? 150 : 110;
+    g.strokeRect(mx, my, W - mx * 2, H - my * 2);
     g.lineWidth = 0.8;
-    g.strokeRect(162, 122, W - 324, H - 244);
+    g.strokeRect(mx + 12, my + 12, W - mx * 2 - 24, H - my * 2 - 24);
     return c;
   }
 
@@ -855,7 +941,7 @@
     GRAIN = ink.makeGrain(W, H, 99);
     SKY = makeSky();
     TITLE = makeTitle();
-    PLATE_MASK = makePlateMask(640, 360);
+    PLATE_MASK = VERT ? makePlateMask(360, 640) : makePlateMask(640, 360);
     await progress(0.16);
     const S = await WP.world.build((p) => progress(0.16 + p * 0.74));
     A = { S, L: layout(S) };
@@ -1149,7 +1235,8 @@
   function drawForeground(ctx, cam, t) {
     const xf = layerXf(cam, 1.35);
     ctx.save();
-    ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
+    // in the tall frame the near grass sits wherever the zoom puts it; pin it to the foot
+    ctx.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy + (VERT ? H + FG_BELOW - (xf.oy + 275 * xf.z) : 0));
     drawLayer(ctx, A.L.fg, xf, t, 1.35, 600);
     ctx.restore();
     // live swaying grass blades along the very bottom edge
@@ -1180,7 +1267,7 @@
     const R = rng(909);
     for (let i = 0; i < 9; i++) {
       const x = ((R() * W * 1.6 - cam.x * 0.9 * (0.6 + R() * 0.4) + noise1(t * 0.15 + i) * 120) % (W * 1.6) + W * 1.6) % (W * 1.6) - W * 0.3;
-      const y = 250 + R() * 700 + noise1(t * 0.2 + i * 3) * 60;
+      const y = (250 + R() * 700) * (H / 1080) + noise1(t * 0.2 + i * 3) * 60;
       const r = 160 + R() * 260;
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
       const warm = i % 3 !== 0;
@@ -1197,7 +1284,7 @@
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     for (let i = 0; i < 6; i++) {
-      const x0 = 250 + i * 190 + Math.sin(t * 0.3 + i) * 30;
+      const x0 = (250 + i * 190) * (W / 1920) + Math.sin(t * 0.3 + i) * 30;
       const w = 70 + (i % 3) * 50;
       const g = ctx.createLinearGradient(x0, 0, x0 + 500, H);
       g.addColorStop(0, `rgba(255,226,160,${0.16 * amt})`);
@@ -1290,8 +1377,11 @@
   function drawTitlePage(ctx, t, poster = false) {
     ctx.drawImage(TITLE, 0, 0);
     // three bees looping over a dotted flight path
+    // the page is set for its shape: across for 16:9, down the page (title on two lines) for 9:16
+    const cx = W / 2;
+    const Y = VERT ? { bees: 560, rule: 1080, sub1: 1200, sub2: 1268, pot: 1560, leaf: 1492 } : { bees: 250, rule: 518, sub1: 612, sub2: 676, pot: 850, leaf: 790 };
     ctx.save();
-    ctx.translate(960, 250);
+    ctx.translate(cx, Y.bees);
     ctx.strokeStyle = rgba(PAL.ink, 0.55);
     ctx.setLineDash([2, 7]);
     ctx.lineWidth = 1.6;
@@ -1314,30 +1404,35 @@
       ctx.restore();
     }
     ctx.restore();
-    inkText(ctx, 'The Windy Picnic', 960, 470, '118px "IM Fell English", Georgia, serif', seg(t, 0.2, 1.6, ease.linear));
+    if (VERT) {
+      inkText(ctx, 'The Windy', cx, 880, '128px "IM Fell English", Georgia, serif', seg(t, 0.2, 1.0, ease.linear));
+      inkText(ctx, 'Picnic', cx, 1020, '128px "IM Fell English", Georgia, serif', seg(t, 0.8, 1.6, ease.linear));
+    } else {
+      inkText(ctx, 'The Windy Picnic', cx, 470, '118px "IM Fell English", Georgia, serif', seg(t, 0.2, 1.6, ease.linear));
+    }
     // ornament rule
     const k = seg(t, 1.0, 2.0);
     ctx.save();
     ctx.globalAlpha = k;
-    ink.line(ctx, [[960 - 190 * k, 520], [960, 516], [960 + 190 * k, 520]], { w: 1.6, seed: 3, taper: [0.3, 0.3] });
+    ink.line(ctx, [[cx - 190 * k, Y.rule + 2], [cx, Y.rule - 2], [cx + 190 * k, Y.rule + 2]], { w: 1.6, seed: 3, taper: [0.3, 0.3] });
     ctx.fillStyle = PAL.ink;
     ctx.beginPath();
-    ctx.ellipse(960, 518, 6, 4, 0, 0, TAU);
+    ctx.ellipse(cx, Y.rule, 6, 4, 0, 0, TAU);
     ctx.fill();
     ctx.restore();
-    inkText(ctx, 'In which Pooh plans a picnic,', 960, 612, 'italic 50px "IM Fell English", Georgia, serif', seg(t, 1.1, 2.4, ease.linear), PAL.inkSoft);
-    inkText(ctx, 'and the wind comes too', 960, 676, 'italic 50px "IM Fell English", Georgia, serif', seg(t, 2.2, 3.4, ease.linear), PAL.inkSoft);
+    inkText(ctx, 'In which Pooh plans a picnic,', cx, Y.sub1, 'italic 50px "IM Fell English", Georgia, serif', seg(t, 1.1, 2.4, ease.linear), PAL.inkSoft);
+    inkText(ctx, 'and the wind comes too', cx, Y.sub2, 'italic 50px "IM Fell English", Georgia, serif', seg(t, 2.2, 3.4, ease.linear), PAL.inkSoft);
     // a little honey pot vignette
     if (poster) return;
     ctx.save();
     ctx.globalAlpha = seg(t, 1.8, 2.8);
-    ctx.translate(960, 850);
-    ctx.scale(1.25, 1.25);
+    ctx.translate(cx, Y.pot);
+    ctx.scale(VERT ? 1.6 : 1.25, VERT ? 1.6 : 1.25);
     drawPot(ctx, {});
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = seg(t, 2.2, 3.0);
-    drawLeaf(ctx, 1030, 790 + Math.sin(t * 1.5) * 4, 0.6 + Math.sin(t) * 0.1, 1, 1.8, 0);
+    drawLeaf(ctx, cx + (VERT ? 90 : 70), Y.leaf + Math.sin(t * 1.5) * 4, 0.6 + Math.sin(t) * 0.1, 1, VERT ? 2.2 : 1.8, 0);
     ctx.restore();
   }
 
@@ -1414,8 +1509,9 @@
     // page behind the plate
     ctx.drawImage(PAPER, 0, 0);
     // starts exactly full frame, so the first frame of the plate is the scene itself
-    const pw = lerp(W, W * 0.64, k), ph = lerp(H, H * 0.64, k);
-    const cx = W / 2, cy = lerp(H / 2, 470, k);
+    const s = VERT ? 0.74 : 0.64;
+    const pw = lerp(W, W * s, k), ph = lerp(H, H * s, k);
+    const cx = W / 2, cy = lerp(H / 2, VERT ? 830 : 470, k);
     // the scene, printed as a plate on the page with soft deckled edges (the edges fade in)
     const plate = ACT.getContext('2d');
     plate.setTransform(1, 0, 0, 1, 0, 0);
@@ -1432,10 +1528,16 @@
       ctx.drawImage(SCENE, cx - pw / 2, cy - ph / 2, pw, ph);
       ctx.globalAlpha = 1;
     }
-    inkText(ctx, 'The End', 960, 918, 'italic 76px "IM Fell English", Georgia, serif', seg(t, 57.5, 58.6, ease.linear));
+    const endY = VERT ? 1650 : 918;
+    inkText(ctx, 'The End', cx, endY, `italic ${VERT ? 88 : 76}px "IM Fell English", Georgia, serif`, seg(t, 57.5, 58.6, ease.linear));
     ctx.save();
     ctx.globalAlpha = seg(t, 58.4, 59.3) * 0.85;
-    inkText(ctx, 'after Winnie-the-Pooh by A. A. Milne, with decorations by E. H. Shepard (1926)', 960, 978, '26px "IM Fell English", Georgia, serif', 1, PAL.inkSoft);
+    if (VERT) {
+      inkText(ctx, 'after Winnie-the-Pooh by A. A. Milne,', cx, endY + 70, '30px "IM Fell English", Georgia, serif', 1, PAL.inkSoft);
+      inkText(ctx, 'with decorations by E. H. Shepard (1926)', cx, endY + 112, '30px "IM Fell English", Georgia, serif', 1, PAL.inkSoft);
+    } else {
+      inkText(ctx, 'after Winnie-the-Pooh by A. A. Milne, with decorations by E. H. Shepard (1926)', cx, endY + 60, '26px "IM Fell English", Georgia, serif', 1, PAL.inkSoft);
+    }
     ctx.restore();
   }
 
@@ -1543,7 +1645,8 @@
     const open = ease.outCubic(seg(t, cue.start, cue.start + 0.32, ease.linear));
     const out = seg(t, cue.end - 0.28, cue.end);
     ctx.save();
-    ctx.translate(W / 2, H - SUB.bottom - L.h / 2 - out * 6 - lift);
+    const cy = VERT ? H * 0.745 : H - SUB.bottom - L.h / 2;
+    ctx.translate(W / 2, cy - out * 6 - lift);
     ctx.rotate(L.tilt);
     ctx.globalAlpha = 1 - out;
     // unroll from the middle
@@ -1705,5 +1808,5 @@
     return [px + lx * sc * pS.facing, py + ly * sc];
   }
 
-  WP.film = { PROF, init, render, camera, wind, pooh, piglet, pot, potWorld, poohPawWorld, POT_EVENTS, soundEvents, T, DUR, W, H };
+  WP.film = { VERT, PROF, init, render, camera, wind, pooh, piglet, pot, potWorld, poohPawWorld, POT_EVENTS, soundEvents, T, DUR, W, H };
 })();
