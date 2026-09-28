@@ -24,7 +24,7 @@
   /* ------------------------------------------------------------ sound */
 
   const Sound = {
-    ctx: null, buffer: null, src: null, gain: null, startAt: 0, offset: 0, failed: false,
+    ctx: null, buffer: null, src: null, gain: null, startAt: 0, offset: 0, failed: false, lastT: 0,
     wallStart: 0, // fallback clock when there is no audio
 
     async load() {
@@ -50,7 +50,18 @@
         return state.playing ? this.offset + (performance.now() - this.wallStart) / 1000 : this.offset;
       }
       if (!state.playing) return this.offset;
-      return Math.max(0, this.ctx.currentTime - this.startAt - this.latency());
+      // The audio clock ticks in blocks (every 3–20 ms depending on the browser), which makes
+      // motion judder if used raw. getOutputTimestamp pairs it with the page clock, so we can
+      // read the audio position at this exact moment, then keep it from ever stepping back.
+      let now = this.ctx.currentTime - this.latency();
+      if (this.ctx.getOutputTimestamp) {
+        const ts = this.ctx.getOutputTimestamp();
+        if (ts.contextTime > 0 && ts.performanceTime > 0) now = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+      }
+      const t = Math.max(0, now - this.startAt);
+      if (t < this.lastT && this.lastT - t < 0.05) return this.lastT;
+      this.lastT = t;
+      return t;
     },
 
     async play(from) {
@@ -69,6 +80,7 @@
       const when = this.ctx.currentTime + 0.03;
       src.start(when, this.offset);
       this.startAt = when - this.offset;
+      this.lastT = 0;
       this.src = src;
     },
 

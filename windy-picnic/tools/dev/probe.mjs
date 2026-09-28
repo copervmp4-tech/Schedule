@@ -1,0 +1,10 @@
+import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import path from 'path';
+const [,, expr, t0, t1, step] = process.argv;
+const browser = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+const page = await browser.newPage();
+await page.goto('file://' + path.resolve('frames.html'));
+await page.waitForFunction(() => window.ready === true, null, { timeout: 180000 });
+const r = await page.evaluate(({ expr, t0, t1, step }) => { const out = []; for (let t = +t0; t <= +t1 + 1e-9; t += +step) out.push([+t.toFixed(4), eval(expr)]); return out; }, { expr, t0, t1, step });
+for (const [t, v] of r) console.log(t, JSON.stringify(v));
+await browser.close();

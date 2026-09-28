@@ -22,7 +22,8 @@
 
 | What | Author | Licence | Use |
 |------|--------|---------|-----|
-| Kokoro-82M text-to-speech model, voice `bf_emma`, with the misaki G2P | hexgrad | Apache-2.0 | Narration, generated locally (`tools/narration_tts.py`) |
+| Chatterbox TTS | Resemble AI | MIT | The narration and the characters' voices, generated locally (`tools/narration_chatterbox.py`). Its output carries an inaudible Perth watermark identifying it as AI speech |
+| Kokoro-82M text-to-speech model (voices `bf_emma`, `bm_george`, `bf_lily`), with the misaki G2P | hexgrad | Apache-2.0 | Short synthetic voice prompts that give the narrator, Pooh and Piglet their timbre (`tools/narration_voice_prompts.py`) |
 | VSCO-2 Community Edition sample library | Versilian Studios / Sam Gossner | CC0 1.0 | Instrument samples for the score: harp, clarinet, bassoon, flute, string sections (arco and pizzicato), contrabass pizzicato, glockenspiel |
 | IM Fell English, IM Fell English SC | Igino Marini (the Fell Types) | SIL OFL 1.1 | Title page, *The End*, the pot label and door board |
 | EB Garamond | Georg Duffner, Octavio Pardo | SIL OFL 1.1 | Subtitles and page text |
@@ -34,7 +35,7 @@ The font licence texts are in `assets/fonts/`.
 - Playwright's Chromium, for frame rendering.
 - FFmpeg (imageio-ffmpeg static build) with libx264, libmp3lame and AAC.
 - Python: NumPy, SciPy, soundfile and pyloudnorm.
-- faster-whisper, to check that the narration is intelligible.
+- faster-whisper, for word timings and to check that the narration reads back exactly.
 - torchaudio SQUIM, as one input to voice selection.
 
 ## Rights note (not legal advice)

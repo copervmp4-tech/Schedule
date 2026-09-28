@@ -1,0 +1,582 @@
+{
+ "L0": {
+  "speaker": "n",
+  "text": "In which Pooh plans a picnic, and the wind comes too.",
+  "words": [
+   [
+    "In",
+    0.0,
+    0.14
+   ],
+   [
+    "which",
+    0.14,
+    0.32
+   ],
+   [
+    "Pooh",
+    0.32,
+    0.78
+   ],
+   [
+    "plans",
+    0.78,
+    1.0
+   ],
+   [
+    "a",
+    1.0,
+    1.14
+   ],
+   [
+    "picnic",
+    1.14,
+    1.42
+   ],
+   [
+    "and",
+    1.42,
+    1.98
+   ],
+   [
+    "the",
+    1.98,
+    2.1
+   ],
+   [
+    "wind",
+    2.1,
+    2.36
+   ],
+   [
+    "comes",
+    2.36,
+    2.66
+   ],
+   [
+    "too.",
+    2.66,
+    3.04
+   ]
+  ]
+ },
+ "L1a": {
+  "speaker": "n",
+  "text": "One breezy morning, Pooh laid out a picnic: a cloth, a pot of honey,",
+  "words": [
+   [
+    "One",
+    0.0,
+    0.24
+   ],
+   [
+    "breezy",
+    0.24,
+    0.62
+   ],
+   [
+    "morning,",
+    0.62,
+    1.02
+   ],
+   [
+    "Pooh",
+    1.66,
+    1.78
+   ],
+   [
+    "laid",
+    1.78,
+    1.9
+   ],
+   [
+    "out",
+    1.9,
+    2.1
+   ],
+   [
+    "a",
+    2.1,
+    2.24
+   ],
+   [
+    "picnic,",
+    2.24,
+    2.56
+   ],
+   [
+    "a",
+    2.96,
+    3.0
+   ],
+   [
+    "cloth,",
+    3.0,
+    3.24
+   ],
+   [
+    "a",
+    3.5,
+    3.58
+   ],
+   [
+    "pot",
+    3.58,
+    3.7
+   ],
+   [
+    "of",
+    3.7,
+    3.88
+   ],
+   [
+    "honey.",
+    3.88,
+    4.08
+   ]
+  ]
+ },
+ "L1b": {
+  "speaker": "n",
+  "text": "and a space just the size of a Piglet!",
+  "words": [
+   [
+    "and",
+    0.0,
+    0.18
+   ],
+   [
+    "a",
+    0.18,
+    0.26
+   ],
+   [
+    "space",
+    0.26,
+    0.64
+   ],
+   [
+    "just",
+    0.64,
+    1.02
+   ],
+   [
+    "the",
+    1.02,
+    1.28
+   ],
+   [
+    "size",
+    1.28,
+    1.56
+   ],
+   [
+    "of",
+    1.56,
+    1.78
+   ],
+   [
+    "a",
+    1.78,
+    1.9
+   ],
+   [
+    "piglet.",
+    1.9,
+    2.24
+   ]
+  ]
+ },
+ "L2a": {
+  "speaker": "piglet",
+  "text": "For me?",
+  "words": [
+   [
+    "For",
+    0.0,
+    0.14
+   ],
+   [
+    "me.",
+    0.14,
+    0.46
+   ]
+  ]
+ },
+ "L2b": {
+  "speaker": "n",
+  "text": "asked Piglet.",
+  "words": [
+   [
+    "Ask",
+    0.0,
+    0.26
+   ],
+   [
+    "Piglet.",
+    0.26,
+    0.7
+   ]
+  ]
+ },
+ "L3a": {
+  "speaker": "pooh",
+  "text": "For us.",
+  "words": [
+   [
+    "For",
+    0.0,
+    0.2
+   ],
+   [
+    "us.",
+    0.2,
+    0.46
+   ]
+  ]
+ },
+ "L3b": {
+  "speaker": "n",
+  "text": "said Pooh.",
+  "words": [
+   [
+    "Said",
+    0.0,
+    0.24
+   ],
+   [
+    "Pooh.",
+    0.24,
+    0.7
+   ]
+  ]
+ },
+ "L4": {
+  "speaker": "n",
+  "text": "But the wind, it seemed, wanted to come too.",
+  "words": [
+   [
+    "But",
+    0.0,
+    0.18
+   ],
+   [
+    "the",
+    0.18,
+    0.34
+   ],
+   [
+    "wind,",
+    0.34,
+    0.7
+   ],
+   [
+    "it",
+    0.7,
+    0.82
+   ],
+   [
+    "seemed,",
+    0.82,
+    1.18
+   ],
+   [
+    "wanted",
+    1.66,
+    1.96
+   ],
+   [
+    "to",
+    1.96,
+    2.22
+   ],
+   [
+    "come",
+    2.22,
+    2.4
+   ],
+   [
+    "too.",
+    2.4,
+    2.76
+   ]
+  ]
+ },
+ "L5": {
+  "speaker": "n",
+  "text": "So off they went, over the heather and under the pines, with the bees close behind, just in case.",
+  "words": [
+   [
+    "So",
+    0.0,
+    0.24
+   ],
+   [
+    "off",
+    0.24,
+    0.5
+   ],
+   [
+    "they",
+    0.5,
+    0.74
+   ],
+   [
+    "went,",
+    0.74,
+    1.08
+   ],
+   [
+    "over",
+    1.42,
+    1.74
+   ],
+   [
+    "the",
+    1.74,
+    1.88
+   ],
+   [
+    "heather",
+    1.88,
+    2.16
+   ],
+   [
+    "and",
+    2.16,
+    2.56
+   ],
+   [
+    "under",
+    2.56,
+    2.88
+   ],
+   [
+    "the",
+    2.88,
+    3.02
+   ],
+   [
+    "pines",
+    3.02,
+    3.48
+   ],
+   [
+    "with",
+    3.48,
+    3.86
+   ],
+   [
+    "the",
+    3.86,
+    4.0
+   ],
+   [
+    "bees",
+    4.0,
+    4.26
+   ],
+   [
+    "close",
+    4.26,
+    4.6
+   ],
+   [
+    "behind",
+    4.6,
+    5.0
+   ],
+   [
+    "just",
+    5.0,
+    5.36
+   ],
+   [
+    "in",
+    5.36,
+    5.64
+   ],
+   [
+    "case.",
+    5.64,
+    5.88
+   ]
+  ]
+ },
+ "L6a": {
+  "speaker": "pooh",
+  "text": "Perhaps...",
+  "words": [
+   [
+    "Perhaps.",
+    0.0,
+    0.36
+   ]
+  ]
+ },
+ "L6b": {
+  "speaker": "n",
+  "text": "said Pooh,",
+  "words": [
+   [
+    "said",
+    0.0,
+    0.24
+   ],
+   [
+    "Pooh.",
+    0.24,
+    0.64
+   ]
+  ]
+ },
+ "L6c": {
+  "speaker": "pooh",
+  "text": "it knows somewhere nicer.",
+  "words": [
+   [
+    "It",
+    0.0,
+    0.18
+   ],
+   [
+    "knows",
+    0.18,
+    0.46
+   ],
+   [
+    "somewhere",
+    0.46,
+    0.84
+   ],
+   [
+    "nicer.",
+    0.84,
+    1.2
+   ]
+  ]
+ },
+ "L7": {
+  "speaker": "n",
+  "text": "It did.",
+  "words": [
+   [
+    "It",
+    0.0,
+    0.18
+   ],
+   [
+    "did.",
+    0.18,
+    0.46
+   ]
+  ]
+ },
+ "L8": {
+  "speaker": "n",
+  "text": "It wasn't quite the picnic Pooh had planned.",
+  "words": [
+   [
+    "It",
+    0.0,
+    0.16
+   ],
+   [
+    "wasn't",
+    0.16,
+    0.54
+   ],
+   [
+    "quite",
+    0.54,
+    0.72
+   ],
+   [
+    "the",
+    0.72,
+    0.98
+   ],
+   [
+    "picnic",
+    0.98,
+    1.34
+   ],
+   [
+    "Pooh",
+    1.34,
+    1.66
+   ],
+   [
+    "had",
+    1.66,
+    1.76
+   ],
+   [
+    "planned.",
+    1.76,
+    2.06
+   ]
+  ]
+ },
+ "L9": {
+  "speaker": "n",
+  "text": "But with Piglet beside him, it was a perfectly wonderful afternoon.",
+  "words": [
+   [
+    "But",
+    0.0,
+    0.16
+   ],
+   [
+    "with",
+    0.16,
+    0.32
+   ],
+   [
+    "Piglet",
+    0.32,
+    0.68
+   ],
+   [
+    "beside",
+    0.68,
+    1.04
+   ],
+   [
+    "him,",
+    1.04,
+    1.32
+   ],
+   [
+    "it",
+    1.52,
+    1.64
+   ],
+   [
+    "was",
+    1.64,
+    1.74
+   ],
+   [
+    "a",
+    1.74,
+    1.92
+   ],
+   [
+    "perfectly",
+    1.92,
+    2.36
+   ],
+   [
+    "wonderful",
+    2.36,
+    3.0
+   ],
+   [
+    "afternoon.",
+    3.0,
+    3.52
+   ]
+  ]
+ }
+}

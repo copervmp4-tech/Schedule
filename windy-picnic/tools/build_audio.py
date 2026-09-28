@@ -86,7 +86,7 @@ def build_sfx(ev):
     P(X.cloth_poof(0.8), 9.1, -15, 0.0)
     # the honey pot
     P(X.ceramic(0.25, thud=0.2, seed=1), T['potPick'] + 0.02, -24, -0.15)
-    P(X.ceramic(0.4, seed=2), T['potPlace'] + 0.22, -13, -0.05)  # the pot settles onto the cloth 0.22 s after it is put down
+    P(X.ceramic(0.4, seed=2), T['potPlace'], -13, -0.05)  # the pot lands on the cloth
     # Piglet pops up from the long grass and trots over
     P(X.grass_rustle(0.55), T['pigletPop'] - 0.03, -14, 0.35)
     P(X.grass_rustle(0.45), 13.3, -18, 0.3)
@@ -123,7 +123,7 @@ def build_sfx(ev):
     P(X.grass_rustle(0.6), 33.72, -12, 0.25)
     flag = X.flutter_loop(1.3, 17, 1.1)
     P(flag * np.linspace(1, 0.8, len(flag)), 33.75, -13, 0.3)
-    P(X.ceramic(0.3, thud=0.5, seed=30), 34.05, -16, -0.2)
+    P(X.ceramic(0.3, thud=0.5, seed=30), 34.28, -16, -0.2)
     for h in (34.12, 34.55):
         P(X.step('piglet', int(h * 100)), h + 0.34, -18, 0.15)
     P(X.cloth_whisk(0.4), 34.93, -10, 0.35)
@@ -135,7 +135,7 @@ def build_sfx(ev):
     fall = X.flutter_loop(2.4, 6, 0.5)
     P(fall * np.hanning(len(fall)), 40.4, -22, 0.2)
     P(X.cloth_poof(0.9), 42.75, -14, 0.1)
-    P(X.ceramic(0.3, thud=0.4, seed=50), 43.0, -18, -0.15)
+    P(X.ceramic(0.3, thud=0.4, seed=50), 43.1, -18, -0.15)
     # sharing the honey
     P(X.ceramic(0.2, thud=0.1, seed=60), 45.72, -24, 0.0)
     P(X.honey_plip(), 46.95, -17, 0.12)
@@ -215,6 +215,26 @@ def envelope(x, attack=0.03, release=0.35):
     return np.interp(np.arange(len(x)), np.arange(len(env)) * hop, env)
 
 
+def compress(x, thresh_db=-20, ratio=3.0, attack=0.005, release=0.1, makeup_db=0.0):
+    """Feed-forward RMS-ish compressor (mono), smooth gain in dB."""
+    lev = 20 * np.log10(np.abs(x) + 1e-7)
+    over = np.maximum(0, lev - thresh_db)
+    target = -over * (1 - 1 / ratio)
+    ka = np.exp(-1 / (attack * SR))
+    kr = np.exp(-1 / (release * SR))
+    from scipy.signal import lfilter
+    # a two-stage smoother: fast attack when gain must fall, slow release when it can rise
+    g = np.empty_like(target)
+    prev = 0.0
+    hop = 32
+    for i in range(0, len(target), hop):
+        tval = target[i:i + hop].min()
+        k = ka ** hop if tval < prev else kr ** hop
+        prev = k * prev + (1 - k) * tval
+        g[i:i + hop] = prev
+    return x * 10 ** ((g + makeup_db) / 20)
+
+
 def limiter(x, ceiling_db=-1.2, look=0.004, release=0.08):
     ceil = db(ceiling_db)
     peak = np.abs(x).max(axis=1)
@@ -248,9 +268,13 @@ def main():
     bees = build_bees(ev)
     amb = build_ambience(ev)
 
-    # narration, gently presence-lifted and centred
+    # narration, gently presence-lifted, levelled with a soft compressor, and centred
     sos = butter(2, 90, 'high', fs=SR, output='sos')
-    nar_f = sosfilt(sos, nar)
+    nar_h = sosfilt(sos, nar)
+    nar_f = compress(nar_h, thresh_db=-16, ratio=2.5, attack=0.004, release=0.09)
+    # keep the voice exactly as loud as before; the compressor only evens out its peaks
+    m_ = pyln.Meter(SR)
+    nar_f = nar_f * db(m_.integrated_loudness(nar_h) - m_.integrated_loudness(nar_f))
     NAR = np.stack([nar_f, nar_f], axis=1).astype(np.float32)
 
     # ducking keyed from the narration
@@ -281,6 +305,15 @@ def main():
     meter = pyln.Meter(SR)
     loud = meter.integrated_loudness(mix)
     target = -16.0
+    # the voice gets its own peak limiter (a transparent 1-3 dB on the loudest syllables), so
+    # the master limiter never has to pump the whole mix on an exclamation
+    g0 = db(target - loud)
+    npk = np.abs(stems['narration']).max() * g0
+    if npk > db(-3.0):
+        stems['narration'] = limiter(stems['narration'], 20 * np.log10(db(-3.0) / g0), look=0.003, release=0.06)
+        mix = sum(stems.values())
+        mix *= (np.clip(t / 0.03, 0, 1) * np.clip((DUR - t) / 0.8, 0, 1))[:, None]
+        loud = meter.integrated_loudness(mix)
     mix = mix * db(target - loud)
     mix = limiter(mix, -1.2)
     final_loud = meter.integrated_loudness(mix)

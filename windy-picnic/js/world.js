@@ -21,13 +21,39 @@
 
   function sprite(w, h, ax, ay, draw, o = {}) {
     const res = o.res ?? RES;
-    const c = makeCanvas(w * res, h * res);
-    const g = c.getContext('2d');
-    g.scale(res, res);
-    g.translate(ax, ay);
-    g.lineJoin = 'round';
-    g.lineCap = 'round';
-    draw(g);
+    // draw on a generous canvas, then trim to what was actually drawn, so foliage or
+    // branches that reach past the nominal box are never cut off
+    const m = Math.min(420, Math.max(w, h) * 0.45);
+    const big = makeCanvas((w + m * 2) * res, (h + m * 2) * res);
+    const bg = big.getContext('2d');
+    bg.scale(res, res);
+    bg.translate(ax + m, ay + m);
+    bg.lineJoin = 'round';
+    bg.lineCap = 'round';
+    draw(bg);
+    const d = bg.getImageData(0, 0, big.width, big.height).data;
+    let x0 = big.width, y0 = big.height, x1 = -1, y1 = -1;
+    for (let y = 0; y < big.height; y++) {
+      const row = y * big.width * 4;
+      for (let x = 0; x < big.width; x++) {
+        if (d[row + x * 4 + 3] > 2) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < 0) { x0 = 0; y0 = 0; x1 = 1; y1 = 1; }
+    x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2);
+    x1 = Math.min(big.width - 1, x1 + 2); y1 = Math.min(big.height - 1, y1 + 2);
+    if (o.onEdge && (x0 === 0 || y0 === 0 || x1 === big.width - 1 || y1 === big.height - 1)) o.onEdge();
+    const c = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
+    c.getContext('2d').drawImage(big, -x0, -y0);
+    ax = (ax + m) - x0 / res;
+    ay = (ay + m) - y0 / res;
+    w = c.width / res;
+    h = c.height / res;
     let img = c, pad = 0;
     if (o.cutout !== false) {
       const cu = ink.cutout(c, { margin: (o.margin ?? 3) * res, shadow: o.shadow === null ? null : { x: 4 * res, y: 6 * res, blur: 9 * res, a: o.shadowA ?? 0.22 }, paper: o.paper });
@@ -255,8 +281,8 @@
     const h = 900, w = 280;
     return sprite(900, h + 60, 450, h + 10, (g) => {
       const R = rng(501);
-      const L = [[-w * 0.5 - 90, 0], [-w * 0.55, -50], [-w * 0.5, -h * 0.45], [-w * 0.46, -h]];
-      const Rr = [[w * 0.46, -h], [w * 0.5, -h * 0.45], [w * 0.56, -50], [w * 0.5 + 100, 0]];
+      const L = [[-w * 0.5 - 90, 14], [-w * 0.55, -50], [-w * 0.5, -h * 0.45], [-w * 0.46, -h]];
+      const Rr = [[w * 0.46, -h], [w * 0.5, -h * 0.45], [w * 0.56, -50], [w * 0.5 + 100, 14]];
       const trunk = pathFrom(spline(L, false, 6).concat(spline(Rr, false, 6)));
       g.fillStyle = PAL.paperLight;
       g.fill(trunk);
@@ -275,24 +301,38 @@
       g.restore();
       ink.stroke(g, spline(L, false, 6), { w: 3.2, seed: 505, wobble: 2, taper: [0.02, 0.05] });
       ink.stroke(g, spline(Rr, false, 6), { w: 3.4, seed: 506, wobble: 2, taper: [0.05, 0.02] });
-      // the door, set into the trunk
-      const door = new Path2D();
-      door.moveTo(-58, -2);
-      door.lineTo(-58, -190);
-      door.quadraticCurveTo(-58, -222, -20, -226);
-      door.lineTo(22, -226);
-      door.quadraticCurveTo(58, -222, 58, -190);
-      door.lineTo(58, -2);
-      door.closePath();
+      // the door, set into the trunk, standing on a stone doorstep above the grass
+      const DB = -20; // bottom of the door (the top of the step)
+      const archPts = [[-56, DB], [-56, -150], [-57, -190], [-44, -216], [-18, -227], [18, -227], [44, -216], [57, -190], [56, -150], [56, DB]];
+      const arch = spline(archPts, false, 6);
+      const door = pathFrom(arch.concat([[56, DB], [-56, DB]]));
+      // a dark reveal round the door, where the wood of the trunk is cut back
+      g.save();
+      g.lineWidth = 9;
+      g.strokeStyle = rgba(PAL.ink, 0.28);
+      g.stroke(pathFrom(arch, false));
+      g.restore();
       g.fillStyle = PAL.paperLight;
       g.fill(door);
       ink.wash(g, door, PAL.moss, { alpha: 0.62, edge: 0.6 });
       g.save();
       g.clip(door);
-      for (let i = -3; i <= 3; i++) ink.stroke(g, [[i * 16, -224], [i * 16 + 1, -4]], { w: 1.1, seed: 510 + i, alpha: 0.6, wobble: 0.6 });
+      for (let i = -3; i <= 3; i++) ink.stroke(g, [[i * 16, -226], [i * 16 + 1, DB - 1]], { w: 1.1, seed: 510 + i, alpha: 0.6, wobble: 0.6 });
       ink.hatch(g, [20, -226, 40, 226], { angle: -1.2, spacing: 3, w: 0.9, alpha: 0.6, seed: 512 });
       g.restore();
-      ink.outline(g, spline([[-58, -2], [-58, -190], [-40, -222], [0, -228], [40, -222], [58, -190], [58, -2]], true, 4), { w: 2.4, seed: 513, breaks: 3 });
+      // the door is inked round its arch only; the step makes its bottom edge
+      ink.stroke(g, arch, { w: 2.5, seed: 513, wobble: 0.8, taper: [0.04, 0.04] });
+      // the doorstep: a flat, worn stone
+      const stepPts = [[-74, DB - 1], [-40, DB - 4], [30, DB - 4], [72, DB - 1], [76, DB + 8], [70, DB + 15], [-70, DB + 15], [-77, DB + 8]];
+      const step = pathFrom(spline(stepPts, true, 4));
+      g.fillStyle = PAL.paperLight;
+      g.fill(step);
+      ink.wash(g, step, PAL.paperDark, { alpha: 0.75, edge: 0.5 });
+      g.save();
+      g.clip(step);
+      ink.hatch(g, [-80, DB + 4, 160, 14], { angle: -0.15, spacing: 2.6, w: 0.9, alpha: 0.55, seed: 519, minLen: 0.3 });
+      g.restore();
+      ink.outline(g, spline(stepPts, true, 4), { w: 2, seed: 518, breaks: 2 });
       // latch and knocker
       g.fillStyle = PAL.ink;
       g.beginPath();
@@ -326,11 +366,11 @@
       g.closePath();
       g.fill();
       ink.outline(g, [[70, -268], [74, -284], [80, -268], [84, -252], [66, -252]], { w: 1.4, seed: 517, breaks: 1 });
-      // roots and a log step
+      // roots running into the ground
       for (let i = 0; i < 6; i++) {
-        const x0 = (R() - 0.5) * w * 1.1;
+        const x0 = (i < 3 ? -1 : 1) * (w * 0.2 + R() * w * 0.35);
         const dir = x0 < 0 ? -1 : 1;
-        ink.line(g, [[x0, -36 - R() * 30], [x0 + dir * (30 + R() * 40), -8], [x0 + dir * (80 + R() * 60), 2]], { w: 2, seed: 520 + i, taper: [0.1, 0.8] });
+        ink.line(g, [[x0, -40 - R() * 30], [x0 + dir * (30 + R() * 40), -8], [x0 + dir * (80 + R() * 60), 4]], { w: 2, seed: 520 + i, taper: [0.1, 0.8] });
       }
       // ivy creeping up one side
       for (let i = 0; i < 26; i++) {
@@ -513,6 +553,47 @@
     return pts;
   }
 
+  /**
+   * A grassy tussock that grows round the foot of a big tree (drawn in front of it, with
+   * no paper edge), so the trunk rises out of the ground instead of stopping at a line.
+   */
+  function baseTuftSprite(width, seed, o = {}) {
+    const R = rng(seed);
+    return sprite(width + 120, 90, (width + 120) / 2, 40, (g) => {
+      // the earth and grass at the foot: an irregular mound, washed like the meadow
+      const pts = [];
+      const n = 16;
+      for (let i = 0; i <= n; i++) {
+        const u = i / n;
+        const x = lerp(-width / 2 - 40, width / 2 + 40, u);
+        // dips in front of the doorstep so the stone stays in view
+        const dip = clamp(1 - Math.abs(x - (o.stepX ?? 0)) / ((o.stepHalf ?? 0) + 40));
+        pts.push([x, lerp(-4 - Math.sin(u * Math.PI) * (8 + R() * 8), 6, dip)]);
+      }
+      pts.push([width / 2 + 50, 22], [-width / 2 - 50, 22]);
+      const mound = pathFrom(spline(pts, true, 4));
+      ink.wash(g, mound, PAL.mossLight, { alpha: 0.55, edge: 0.15 });
+      ink.wash(g, mound, PAL.moss, { alpha: 0.18, edge: 0, texture: false });
+      // blades in clumps, taller away from the doorstep
+      for (let i = 0; i < 340; i++) {
+        const x = (R() - 0.5) * (width + 110);
+        const nearStep = Math.abs(x - (o.stepX ?? 0)) < (o.stepHalf ?? 0);
+        const hh = (nearStep ? 5 + R() * 7 : 12 + R() * 30) * (1 - Math.pow(Math.abs(x) / (width / 2 + 60), 2) * 0.7);
+        const y0 = (nearStep ? 12 : 8) + R() * 12;
+        const lean = (R() - 0.4) * hh * 0.5;
+        if (R() < 0.45) {
+          g.strokeStyle = rgba(R() < 0.5 ? PAL.moss : PAL.mossLight, 0.75);
+          g.lineWidth = 3;
+          g.beginPath();
+          g.moveTo(x, y0);
+          g.quadraticCurveTo(x + lean * 0.3, y0 - hh * 0.5, x + lean, y0 - hh);
+          g.stroke();
+        }
+        ink.stroke(g, spline([[x, y0], [x + lean * 0.3, y0 - hh * 0.5], [x + lean, y0 - hh]], false, 4), { w: 1.1, seed: seed + i, wobble: 0.2, taper: [0.05, 0.9], alpha: 0.8 });
+      }
+    }, { cutout: false, res: 1.7 });
+  }
+
   /** Tileable ground texture: grass ticks and mottled patches, laid over the meadow band. */
   function groundTile() {
     const TW = 1024, TH = 512;
@@ -559,6 +640,7 @@
     const R = rng(4242);
     await progress(0.05);
     S.house = houseTreeSprite();
+    S.houseTuft = baseTuftSprite(560, 577, { stepX: 0, stepHalf: 70 });
     await progress(0.15);
     S.pines = [0, 1, 2, 3].map((i) => pineSprite(640 + i * 60, 60 + i, {}));
     await progress(0.3);

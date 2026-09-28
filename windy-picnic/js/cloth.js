@@ -109,7 +109,7 @@
     // shaken out (7.35–9.25): springs open above the grass, domes on air, floats down
     if (t < 9.8) {
       const s = invLerp(7.35, 9.25, t);
-      const c0 = [MEADOW.x - 110, 190, MEADOW.z - 20];
+      const c0 = [278, 199, MEADOW.z - 20]; // where the folded bundle is when Pooh flings it
       const c1 = [MEADOW.x - 10, 175, MEADOW.z];
       const c2 = [MEADOW.x, 0, MEADOW.z];
       const k1 = ease.outCubic(clamp(s / 0.35));
@@ -124,7 +124,7 @@
       // settle: edges touch first, the air escapes from the middle
       if (s >= 1) {
         const k = clamp((t - 9.25) / 0.5);
-        return mix(sheet({ c: c2, dome: 14 * (1 - k) * Math.cos(k * 6), waveA: 0 }, t), fl, ease.outCubic(k));
+        return mix(sheet({ c: c2, dome: 9 * Math.sin(k * Math.PI) * (1 - k), waveA: 0 }, t), fl, ease.outCubic(k));
       }
       // stop parts of the sheet going under the ground
       for (const p of sh) p[1] = Math.max(p[1], 0);
@@ -180,7 +180,14 @@
 
   const CREAM = [246, 238, 220], GREEN = [125, 138, 78], DARK = [74, 60, 42];
 
-  function draw(ctx, G) {
+  /**
+   * The cloth cut into drawable pieces for depth sorting with everything else:
+   *   decal(ctx)  draws the quads lying flat on the ground (they go under everything)
+   *   items       [{ z, sub, draw(ctx) }] for the quads off the ground, keyed by how far
+   *               back they are, so a character standing on or behind the cloth and the
+   *               cloth passing in front of a character are both drawn the right way round.
+   */
+  function pieces(G) {
     const S = G.map(([x, y, z]) => proj(x, y, z));
     const quads = [];
     for (let j = 0; j < NV - 1; j++) {
@@ -195,14 +202,19 @@
         let back = false;
         if (facing < 0) { n = [-n[0], -n[1], -n[2]]; back = true; }
         const lit = clamp(0.62 + 0.45 * (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]), 0.35, 1.05);
-        const depth = (P[0][2] + P[2][2]) * 0.5 - (P[0][1] + P[2][1]) * 0.15;
-        quads.push({ idx: [a, b, c, d], i, j, lit, back, depth });
+        const ymean = (P[0][1] + P[1][1] + P[2][1] + P[3][1]) / 4;
+        const zmean = (P[0][2] + P[1][2] + P[2][2] + P[3][2]) / 4;
+        const ymax = Math.max(P[0][1], P[1][1], P[2][1], P[3][1]);
+        const zmax = Math.max(P[0][2], P[1][2], P[2][2], P[3][2]);
+        const border = [];
+        if (j === 0) border.push([a, b]);
+        if (i === NU - 2) border.push([b, c]);
+        if (j === NV - 2) border.push([c, d]);
+        if (i === 0) border.push([d, a]);
+        quads.push({ idx: [a, b, c, d], i, j, lit, back, depth: zmean - ymean * 0.15, key: zmax - ymean * 0.15, flat: ymax < 2.5, border });
       }
     }
-    quads.sort((q1, q2) => q2.depth - q1.depth);
-    ctx.save();
-    ctx.lineJoin = 'round';
-    for (const q of quads) {
+    const drawQuad = (ctx, q) => {
       const si = q.i % 2 === 0, sj = q.j % 2 === 0;
       const g = (si ? 1 : 0) + (sj ? 1 : 0);
       const k = g === 2 ? 0.62 : g === 1 ? 0.3 : 0.02;
@@ -210,11 +222,12 @@
       const shade = q.back ? q.lit * 0.86 : q.lit;
       col = col.map((cv, m) => (shade < 1 ? lerp(DARK[m], cv, 0.35 + 0.65 * shade) : lerp(cv, 255, (shade - 1) * 2)));
       const fill = `rgb(${col[0] | 0},${col[1] | 0},${col[2] | 0})`;
+      const [a, b, c, d] = q.idx;
       ctx.fillStyle = fill;
       ctx.strokeStyle = fill;
       ctx.lineWidth = 1;
+      ctx.lineJoin = 'round';
       ctx.beginPath();
-      const [a, b, c, d] = q.idx;
       ctx.moveTo(S[a][0], S[a][1]);
       ctx.lineTo(S[b][0], S[b][1]);
       ctx.lineTo(S[c][0], S[c][1]);
@@ -222,30 +235,36 @@
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-    }
-    // woven texture
-    ctx.globalAlpha = 0.35;
-    ctx.strokeStyle = rgba(PAL.mossDeep, 0.5);
-    ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    for (let j = 0; j < NV; j += 2) {
-      for (let i = 0; i < NU; i++) {
-        const p = S[j * NU + i];
-        if (i === 0) ctx.moveTo(p[0], p[1]);
-        else ctx.lineTo(p[0], p[1]);
+      // woven texture along alternate rows
+      ctx.strokeStyle = rgba(PAL.mossDeep, 0.18);
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      if (q.j % 2 === 0) { ctx.moveTo(S[a][0], S[a][1]); ctx.lineTo(S[b][0], S[b][1]); }
+      if (q.j === NV - 2 && (NV - 1) % 2 === 0) { ctx.moveTo(S[d][0], S[d][1]); ctx.lineTo(S[c][0], S[c][1]); }
+      ctx.stroke();
+      // the inked hem, a piece at a time
+      for (const [p0, p1] of q.border) {
+        const x0 = S[p0][0], y0 = S[p0][1], x1 = S[p1][0], y1 = S[p1][1];
+        const l = Math.hypot(x1 - x0, y1 - y0) || 1;
+        const ex = ((x1 - x0) / l) * 0.8, ey = ((y1 - y0) / l) * 0.8;
+        ink.stroke(ctx, [[x0 - ex, y0 - ey], [x1 + ex, y1 + ey]], { w: 1.9, seed: 900 + p0 * 0.37 + p1 * 0.11, wobble: 0.25, press: 0.25, taper: [0, 0], minTip: 1 });
       }
-    }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    // inked hem round the edge
-    const edge = [];
-    for (let i = 0; i < NU; i++) edge.push(S[i]);
-    for (let j = 1; j < NV; j++) edge.push(S[j * NU + NU - 1]);
-    for (let i = NU - 2; i >= 0; i--) edge.push(S[(NV - 1) * NU + i]);
-    for (let j = NV - 2; j > 0; j--) edge.push(S[j * NU]);
-    ink.outline(ctx, WP.spline(edge, true, 3), { w: 1.9, seed: 900, breaks: 3, wobble: 0.5 });
-    ctx.restore();
-    return S;
+    };
+    const flat = quads.filter((q) => q.flat).sort((q1, q2) => q2.depth - q1.depth);
+    const lifted = quads.filter((q) => !q.flat);
+    return {
+      S,
+      decal: (ctx) => { for (const q of flat) drawQuad(ctx, q); },
+      items: lifted.map((q) => ({ z: q.key, sub: q.depth, draw: (ctx) => drawQuad(ctx, q) })),
+    };
+  }
+
+  /** The whole cloth on its own, back to front. */
+  function draw(ctx, G) {
+    const pc = pieces(G);
+    pc.decal(ctx);
+    pc.items.sort((a, b) => b.z - a.z || b.sub - a.sub).forEach((it) => it.draw(ctx));
+    return pc.S;
   }
 
   /** Folded cloth bundle (held by Pooh before he shakes it out); origin at its centre. */
@@ -266,5 +285,5 @@
     ink.line(ctx, [[-24, 7], [4, 9], [30, 5]], { w: 1.1, seed: 903, alpha: 0.7 });
   }
 
-  WP.cloth = { state, draw, drawBundle, proj, MEADOW, CLEARING, SNAG, NU, NV };
+  WP.cloth = { state, draw, pieces, drawBundle, proj, MEADOW, CLEARING, SNAG, NU, NV };
 })();

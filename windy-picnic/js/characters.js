@@ -136,6 +136,44 @@
     return S;
   }
 
+  /*
+   * Rigid parts (a body, a head, an ear, a leg, an arm at a given bend) look the same
+   * every frame in their own frame, so each is painted once into a bitmap at 2.6× and then
+   * stamped. The drawing is identical; the per-frame cost drops from thousands of pen
+   * strokes to a handful of image draws, which is what keeps playback smooth.
+   */
+  const CACHE = new Map();
+  const CRES = 2.6;
+  const q = (v, step) => Math.round(v / step) * step;
+  const skey = (sh) => sh ? sh.map((v) => v.toFixed(1)).join(',') : '-';
+  function cachedPart(ctx, key, makeS, st, extra) {
+    let e = CACHE.get(key);
+    if (!e) {
+      const S = makeS();
+      const bb = bbox(S.P);
+      const m = (st.lw ?? 3) * 2.5 + 12;
+      const x0 = bb[0] - m, y0 = bb[1] - m;
+      const c = document.createElement('canvas');
+      c.width = Math.ceil((bb[2] + m * 2) * CRES);
+      c.height = Math.ceil((bb[3] + m * 2) * CRES);
+      const g = c.getContext('2d');
+      g.scale(CRES, CRES);
+      g.translate(-x0, -y0);
+      g.lineJoin = 'round';
+      g.lineCap = 'round';
+      if (st.custom) st.custom(g, S);
+      else paint(g, S, st);
+      if (extra) extra(g, S);
+      e = { S, c, x0, y0, w: c.width / CRES, h: c.height / CRES };
+      CACHE.set(key, e);
+    }
+    const iq = ctx.imageSmoothingQuality;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(e.c, e.x0, e.y0, e.w, e.h);
+    ctx.imageSmoothingQuality = iq;
+    return e.S;
+  }
+
   function at(ctx, x, y, r, fn) {
     ctx.save();
     ctx.translate(x, y);
@@ -211,33 +249,33 @@
 
   function poohEar(ctx, x, y, r, wind, t, seed, shade) {
     at(ctx, x, y, r + wind * 0.2 * Math.sin(t * 19 + seed), () => {
-      part(ctx, POOH.ear, { tint: TINT.pooh, lw: 3.1, seed, open: [7, 8], shade: shade, hDepth: 6, hLen: 9, hSp: 2.8, hA: 0.7, hAngle: -0.9 });
-      // the cup of the ear
-      ink.line(ctx, [[-8, 4], [-9, -5], [-3, -10], [4, -9], [8, -3]], { w: 1.5, seed: seed + 2, taper: [0.3, 0.4], alpha: 0.85 });
+      cachedPart(ctx, 'pooh.ear.' + seed + skey(shade), () => shape(POOH.ear), { tint: TINT.pooh, lw: 3.1, seed, open: [7, 8], shade: shade, hDepth: 6, hLen: 9, hSp: 2.8, hA: 0.7, hAngle: -0.9 }, (g) => {
+        // the cup of the ear
+        ink.line(g, [[-8, 4], [-9, -5], [-3, -10], [4, -9], [8, -3]], { w: 1.5, seed: seed + 2, taper: [0.3, 0.4], alpha: 0.85 });
+      });
     });
   }
 
   function poohArm(ctx, pose, near, seed) {
-    const a = near ? pose.armN : pose.armF;
-    const tb = tube(66, 34, 27, near ? pose.armNCurl : pose.armFCurl, 10, 0.6);
-    const S = shape(tb.pts, 3);
-    const top = tb.pts.length - 1;
-    paint(ctx, S, {
-      tint: TINT.pooh, lw: 3.2, seed, shade: rot(pose.shade, a), hAngle: 1.45, hSp: 2.2, hW: 1.05, hDepth: 11, hLen: 24,
+    const curl = q(near ? pose.armNCurl : pose.armFCurl, 0.04);
+    const top = 27; // index of the rounded shoulder cap in tube()'s outline
+    cachedPart(ctx, 'pooh.arm.' + seed + '.' + curl.toFixed(2) + skey(pose.shade), () => shape(tube(66, 34, 27, curl, 10, 0.6).pts, 3), {
+      tint: TINT.pooh, lw: 3.2, seed, shade: pose.shade, hAngle: 1.45, hSp: 2.2, hW: 1.05, hDepth: 11, hLen: 24,
       open: [top - 1, top + 2],
     });
-    return tb;
   }
 
   function poohLeg(ctx, pose, near, seed, r) {
-    const S = part(ctx, POOH.leg, { tint: TINT.pooh, lw: 3.4, seed, shade: rot(pose.shade, -r), hAngle: 1.5, hSp: 2.2, hW: 1.05, hDepth: 12, hLen: 22, open: [0, 1] });
-    if (pose.sit > 0.5 && near) {
-      // the sole shows when the legs stick out in front
-      at(ctx, 8, 51, 0, () => {
-        part(ctx, WP.ellipsePts(0, 0, 13, 5, 10), { tint: [PAL.honey, 0.25], lw: 1.6, seed: seed + 5, breaks: 1, edge: 0 });
-      });
-    }
-    return S;
+    const sole = pose.sit > 0.5 && near;
+    cachedPart(ctx, 'pooh.leg.' + seed + (sole ? '.sole' : '') + skey(pose.shade), () => shape(POOH.leg),
+      { tint: TINT.pooh, lw: 3.4, seed, shade: pose.shade, hAngle: 1.5, hSp: 2.2, hW: 1.05, hDepth: 12, hLen: 22, open: [0, 1] },
+      sole ? (g) => {
+        // the sole shows when the legs stick out in front
+        g.save();
+        g.translate(8, 51);
+        part(g, WP.ellipsePts(0, 0, 13, 5, 10), { tint: [PAL.honey, 0.25], lw: 1.6, seed: seed + 5, breaks: 1, edge: 0 });
+        g.restore();
+      } : null);
   }
 
   function drawPooh(ctx, pose0) {
@@ -264,17 +302,16 @@
       ctx.translate(pose.headX, POOH.neckY + pose.headY);
       ctx.rotate(pose.head);
     };
-    const HS = shape(POOH.head);
-
     ctx.save();
     bodyFrame();
     at(ctx, -24, -122, -pose.armF, () => poohArm(ctx, pose, false, 31));
-    const BS = part(ctx, POOH.body, {
+    const BS = cachedPart(ctx, 'pooh.body' + skey(sh), () => shape(POOH.body), {
       tint: TINT.pooh, lw: 3.8, seed: 11, shade: sh, hAngle: -1.42, hSp: 2.0, hW: 1.15, hDepth: 34, hLen: 52, hA: 0.85, cross: 0.45,
       fur: [[0.7, 0.9, 0.05, 2.6]],
+    }, (g) => {
+      // the round of the tummy
+      ink.line(g, [[34, -18], [45, -46], [42, -78]], { w: 1.3, seed: 12, alpha: 0.55, taper: [0.4, 0.4] });
     });
-    // the round of the tummy
-    ink.line(ctx, [[34, -18], [45, -46], [42, -78]], { w: 1.3, seed: 12, alpha: 0.55, taper: [0.4, 0.4] });
     // the near arm's shadow on the tummy
     ctx.save();
     ctx.clip(BS.path);
@@ -288,9 +325,10 @@
     ctx.save();
     headFrame();
     poohEar(ctx, -17, -80, -0.22, pose.earWind, t, 41, sh);
-    paint(ctx, HS, { tint: TINT.pooh, lw: 3.6, seed: 51, shade: sh, hAngle: -1.05, hSp: 2.2, hDepth: 12, hLen: 20, hA: 0.7, hThr: 0.45, open: [18, 20], fur: [[0.74, 0.86, 0.05, 2.4]] });
-    // where the muzzle meets the face
-    ink.line(ctx, [[37, -52], [35, -41], [37, -29]], { w: 1.2, seed: 52, alpha: 0.45, taper: [0.4, 0.4] });
+    cachedPart(ctx, 'pooh.head' + skey(sh), () => shape(POOH.head), { tint: TINT.pooh, lw: 3.6, seed: 51, shade: sh, hAngle: -1.05, hSp: 2.2, hDepth: 12, hLen: 20, hA: 0.7, hThr: 0.45, open: [18, 20], fur: [[0.74, 0.86, 0.05, 2.4]] }, (g) => {
+      // where the muzzle meets the face
+      ink.line(g, [[37, -52], [35, -41], [37, -29]], { w: 1.2, seed: 52, alpha: 0.45, taper: [0.4, 0.4] });
+    });
     // nose, a blob at the tip of the muzzle
     ctx.fillStyle = PAL.ink;
     ctx.beginPath();
@@ -353,35 +391,37 @@
   };
 
   function pigEar(ctx, x, y, r, flop, wind, t, seed, shade) {
-    const f = flop + wind * 0.35 * Math.sin(t * 23 + seed * 2);
+    const f = q(flop + wind * 0.35 * Math.sin(t * 23 + seed * 2), 0.04);
+    // ears bend along their length (floppy near the tip)
+    const bend = ([px, py]) => {
+      const k = clamp(-py / 27);
+      return rot([px, py], f * k * k);
+    };
     at(ctx, x, y, r, () => {
-      // ears bend along their length (floppy near the tip)
-      const bend = ([px, py]) => {
-        const k = clamp(-py / 27);
-        const ang = f * k * k;
-        return rot([px, py], ang);
-      };
-      const pts = PIG.ear.map(bend);
-      part(ctx, pts, { tint: TINT.piglet, lw: 2.4, seed, open: [6, 7], shade, hDepth: 4, hLen: 7, hSp: 2.2, hA: 0.6, edge: 0.5 }, 6);
-      // the fold down the middle
-      ink.line(ctx, [[0.5, -1], bend([0.5, -8]), bend([0.5, -16])], { w: 1, seed: seed + 1, alpha: 0.7, taper: [0.3, 0.5] });
+      cachedPart(ctx, 'pig.ear.' + seed + '.' + f.toFixed(2) + skey(shade), () => shape(PIG.ear.map(bend), 6),
+        { tint: TINT.piglet, lw: 2.4, seed, open: [6, 7], shade, hDepth: 4, hLen: 7, hSp: 2.2, hA: 0.6, edge: 0.5 }, (g) => {
+          // the fold down the middle
+          ink.line(g, [[0.5, -1], bend([0.5, -8]), bend([0.5, -16])], { w: 1, seed: seed + 1, alpha: 0.7, taper: [0.3, 0.5] });
+        });
     });
   }
 
   function pigArm(ctx, pose, near, seed) {
-    const a = near ? pose.armN : pose.armF;
-    const tb = tube(38, 7, 5.6, near ? pose.armNCurl : pose.armFCurl, 8, 0.9);
-    const S = shape(tb.pts, 3);
-    const top = tb.pts.length - 1;
-    paint(ctx, S, { tint: TINT.piglet, lw: 2.1, seed, shade: rot(pose.shade, a), hAngle: 1.45, hDepth: 3, hLen: 10, hSp: 2.2, hA: 0.6, edge: 0.5, open: [top - 1, top + 2] });
+    const curl = q(near ? pose.armNCurl : pose.armFCurl, 0.04);
+    const top = 23; // index of the shoulder cap in tube()'s outline (n = 8)
+    cachedPart(ctx, 'pig.arm.' + seed + '.' + curl.toFixed(2) + skey(pose.shade), () => shape(tube(38, 7, 5.6, curl, 8, 0.9).pts, 3),
+      { tint: TINT.piglet, lw: 2.1, seed, shade: pose.shade, hAngle: 1.45, hDepth: 3, hLen: 10, hSp: 2.2, hA: 0.6, edge: 0.5, open: [top - 1, top + 2] });
   }
 
   function pigLeg(ctx, pose, seed, r) {
-    part(ctx, PIG.leg, { tint: TINT.piglet, lw: 2.3, seed, shade: rot(pose.shade, -r), hAngle: 1.5, hDepth: 4, hLen: 9, hSp: 2.2, hA: 0.6, edge: 0.5, open: [0, 1] }, 6);
+    cachedPart(ctx, 'pig.leg.' + seed + skey(pose.shade), () => shape(PIG.leg, 6),
+      { tint: TINT.piglet, lw: 2.3, seed, shade: pose.shade, hAngle: 1.5, hDepth: 4, hLen: 9, hSp: 2.2, hA: 0.6, edge: 0.5, open: [0, 1] });
   }
 
   function jumper(ctx, pose) {
-    const S = shape(PIG.body, 6);
+    return cachedPart(ctx, 'pig.jumper' + skey(pose.shade), () => shape(PIG.body, 6), { lw: 2.8, custom: (g, S) => paintJumper(g, S, pose) });
+  }
+  function paintJumper(ctx, S, pose) {
     const { P, path } = S;
     ctx.fillStyle = PAL.paperLight;
     ctx.fill(path);
@@ -452,7 +492,7 @@
     ctx.save();
     headFrame();
     pigEar(ctx, -9, -44, -1.0 + pose.earF, -0.55 * pose.earF, pose.earWind, t, 141, sh);
-    paint(ctx, HS, { tint: TINT.piglet, lw: 2.8, seed: 151, shade: sh, hAngle: -1.0, hDepth: 10, hLen: 14, hSp: 2.3, hA: 0.7, edge: 0.55 });
+    cachedPart(ctx, 'pig.head' + skey(sh), () => HS, { tint: TINT.piglet, lw: 2.8, seed: 151, shade: sh, hAngle: -1.0, hDepth: 10, hLen: 14, hSp: 2.3, hA: 0.7, edge: 0.55 });
     if (pose.blush > 0) ink.bloom(ctx, 11, -14, 8, '#d99a80', 0.22 * pose.blush, 0.8);
     // the flat end of the snout
     ctx.save();
@@ -501,10 +541,11 @@
   /** Soft-toy walk / run cycle. phase in cycles; amp 0..1 (0 = standing); run 0..1. */
   function walkCycle(phase, amp = 1, run = 0) {
     const a = phase * TAU;
-    const swing = Math.sin(a) * (0.38 + run * 0.32) * amp;
-    const lift = Math.max(0, Math.cos(a)) * (5 + run * 9) * amp;
-    const liftF = Math.max(0, -Math.cos(a)) * (5 + run * 9) * amp;
-    const bob = (Math.abs(Math.sin(a)) - 0.5) * (4 + run * 8) * amp; // down at contact, up at passing
+    const swing = Math.sin(a) * (0.38 + run * 0.3) * amp;
+    // feet lift smoothly (no corner at the contact) and the body rises and falls once a step
+    const lift = Math.pow(Math.max(0, Math.cos(a)), 1.6) * (5 + run * 8) * amp;
+    const liftF = Math.pow(Math.max(0, -Math.cos(a)), 1.6) * (5 + run * 8) * amp;
+    const bob = -0.5 * Math.cos(2 * a) * (4 + run * 7) * amp;
     return {
       legN: swing, legF: -swing, legNLift: lift, legFLift: liftF,
       armN: -swing * (0.8 + run * 0.5) + 0.25, armF: swing * (0.8 + run * 0.5) + 0.2,
@@ -521,5 +562,16 @@
     return 0;
   }
 
-  WP.chars = { drawPooh, drawPiglet, walkCycle, blinkAt, tube };
+  /** Matrix from Pooh's feet to the point where he holds the pot (the pot's base), for this pose. */
+  function poohHoldMatrix(pose0) {
+    const pose = Object.assign({}, POOH_DEFAULT, pose0);
+    const hipY = lerp(-56, -20, pose.sit);
+    return new DOMMatrix()
+      .translate(0, hipY + pose.bob)
+      .rotate((pose.lean * 180) / Math.PI)
+      .scale(1 / Math.sqrt(pose.squash), pose.squash)
+      .translate(36, -28);
+  }
+
+  WP.chars = { drawPooh, drawPiglet, walkCycle, blinkAt, tube, poohHoldMatrix };
 })();

@@ -15,7 +15,7 @@
   const T = {
     pageTurn: [4.35, 5.4],
     fling: 7.35, clothDown: 9.25,
-    potPick: 9.55, potPlace: 10.4,
+    potPick: 9.55, potPlace: 10.46,
     present: 11.05, pigletPop: 12.36, pigletOut: 13.4, pigletStop: 14.35,
     forMe: 14.72, forUs: 17.2, hop: 18.15,
     leaf: 19.5, lift: 20.8, gust: 23.05, cut1: 25.2,
@@ -99,6 +99,7 @@
     return 4060;
   }
   const POOH_STRIDE = 150;
+  const PIG_RUN = 118, PIG_WALK = 92, PIG_TROT = 60;
 
   const poohTracks = {
     lean: [[0, 0], [6.5, 0], [6.95, -0.07], [7.35, 0.1, ease.outQuad], [7.9, 0], [9.3, 0], [9.52, 0.36], [9.62, 0.34], [9.9, 0.03], [10.12, 0.05], [10.36, 0.3], [10.55, 0.28], [10.8, 0.02],
@@ -147,11 +148,28 @@
     for (const k in tr) o[k] = track(tr[k], t);
     return o;
   }
+  /** Keyframes come in three sets (before the snag, the snag to the clearing, the clearing);
+      the first hand-over is blended over 0.4 s so nothing jumps. The second is a cut. */
+  function blendTracks(A, B, C, t) {
+    if (t >= T.cut2) return tracksAt(C, t);
+    if (t < 33.3) return tracksAt(A, t);
+    const b = tracksAt(B, t);
+    const k = seg(t, 33.3, 33.7);
+    if (k >= 1) return b;
+    const a = tracksAt(A, 33.3);
+    const o = {};
+    for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+      if (a[key] === undefined) o[key] = b[key];
+      else if (b[key] === undefined) o[key] = a[key];
+      else o[key] = lerp(a[key], b[key], k);
+    }
+    return o;
+  }
 
   function pooh(t) {
     const s = { x: poohX(t), z: 64, facing: 1, pose: {}, hold: null };
     const P = s.pose;
-    Object.assign(P, tracksAt(t < 33.3 ? poohTracks : t < T.cut2 ? poohTracks2 : poohTracks3, t));
+    Object.assign(P, blendTracks(poohTracks, poohTracks2, poohTracks3, t));
     P.t = t;
     P.blink = blinkAt(t, 1);
     P.shade = [-8, -7];
@@ -160,22 +178,24 @@
     // happy eyes
     const happy = (a, b) => t > a && t < b;
     if (happy(13.05, 13.75) || happy(17.55, 18.45) || happy(43.4, 44.3) || happy(48.3, 48.9) || happy(50.2, 51.0) || happy(53.2, 55.0) || t > 56.4) P.eye = 2;
-    if (t < 7.3) s.hold = 'bundle';
-    else if (t >= T.potPick && t < T.potPlace) s.hold = 'pot';
-    else if (t >= 26.42 && t < 34.05) s.hold = 'pot';
-    else if (t >= 39.12 && t < 43.0) s.hold = 'pot';
+    if (t < 7.35) s.hold = 'bundle';
+    else if (potHeld(t)) s.hold = 'pot';
+    const carrying = s.hold || (potGlide(t) ? 'glide' : null);
 
     // walking / running cycles
-    if (t >= 9.8 && t < 10.12) Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 205) / 120, 0.7, 0), 1, s.hold));
+    if (t >= 9.8 && t < 10.12) {
+      const amp = 0.7 * seg(t, 9.8, 9.9) * (1 - seg(t, 10.0, 10.12));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 205) / 120, amp, 0), amp, carrying));
+    }
     if (t >= RUN0 && t < RUN1 + 0.3) {
       const amp = seg(t, RUN0, RUN0 + 0.35) * (1 - seg(t, 33.35, 34.05));
-      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 222) / POOH_STRIDE + 0.1, amp, 0.85), amp, s.hold));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - 222) / POOH_STRIDE + 0.1, amp, 0.85), amp, carrying));
       s.z = lerp(64, 40, seg(t, RUN0, 28));
     }
     if (t >= RUN1) s.z = 40;
     if (t >= T.walk && t < T.cut2) {
       const amp = seg(t, T.walk, T.walk + 0.3) * (1 - seg(t, 42.2, 42.75));
-      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - poohX(T.walk)) / 115, amp, 0.05), amp, s.hold));
+      Object.assign(P, blendCycle(P, walkCycle((poohX(t) - poohX(T.walk)) / 115, amp, 0.05), amp, carrying));
       s.z = lerp(40, 58, seg(t, T.walk, 42.7));
     }
     // tiptoe reach for the snagged cloth
@@ -196,7 +216,25 @@
       P.legN = 0.05; P.legF = 0.12;
     }
     P.earWind = clamp((wind(t) - 0.25) * 1.4, 0, 1);
+    const tk = talking('pooh', t);
+    if (tk !== null) P.mouth = tk > 0.45 ? -1 : 0.4;
     return s;
+  }
+
+  /** Mouth movement while a character is speaking their own line (from the narration cues). */
+  function talking(who, t) {
+    const L = window.CUES && window.CUES.lines;
+    if (!L) return null;
+    for (const k in L) {
+      const c = L[k];
+      if (c.speaker !== who || t < c.speechStart - 0.03 || t > c.speechEnd + 0.05) continue;
+      // open and close about five times a second, easing at the ends of the phrase
+      const u = (t - c.speechStart) * 5.2;
+      const open = 0.5 - 0.5 * Math.cos(u * TAU);
+      const env = seg(t, c.speechStart - 0.03, c.speechStart + 0.06) * (1 - seg(t, c.speechEnd - 0.06, c.speechEnd + 0.05));
+      return env * open;
+    }
+    return null;
   }
 
   function blendCycle(P, C, amp, hold) {
@@ -274,13 +312,24 @@
     blush: [[45, 0.5], [47.9, 0.5], [48.2, 1], [60, 1]],
   };
 
+  // when Piglet turns round: [time, new facing]; each turn takes 0.2 s
+  const PIG_TURNS = [[23.8, 1], [25.75, -1], [26.2, 1], [35.5, -1], [38.85, 1], [42.85, -1]];
+  function pigletFacing(t) {
+    let f = -1;
+    for (const [t0, to] of PIG_TURNS) {
+      if (t >= t0 + 0.2) f = to;
+      else if (t > t0) return lerp(f, to, ease.inOutSine((t - t0) / 0.2));
+    }
+    return f;
+  }
+
   function piglet(t) {
-    const s = { x: pigletX(t), z: 90, facing: -1, pose: {}, hidden: 0 };
+    const s = { x: pigletX(t), z: 90, facing: pigletFacing(t), pose: {}, hidden: 0 };
     const P = s.pose;
-    Object.assign(P, tracksAt(t < 33.3 ? pigTracks : t < T.cut2 ? pigTracks2 : pigTracks3, t));
+    Object.assign(P, blendTracks(pigTracks, pigTracks2, pigTracks3, t));
     P.t = t;
     P.blink = blinkAt(t, 2);
-    P.shade = [8, -6]; // light from the left, but Piglet faces left — flip the offset
+    P.shade = s.facing < 0 ? [8, -6] : [-6, -5]; // light from the upper left, whichever way he faces
     P.bob = Math.sin(t * 2.6 + 1) * 0.8;
     if (t < T.pigletOut) {
       s.z = 138;
@@ -298,25 +347,24 @@
     if (t > T.hop && t < T.hop + 0.6) {
       const u = (t - T.hop) / 0.6;
       P.bob -= Math.sin(u * Math.PI) * 42;
-      P.squash = u < 0.12 ? 0.88 : u > 0.9 ? 0.9 : 1.06;
+      P.squash = 1 + 0.07 * Math.sin(u * Math.PI) - 0.12 * Math.exp(-((u / 0.08) ** 2)) - 0.1 * Math.exp(-(((u - 1) / 0.08) ** 2));
       P.armN = lerp(P.armN, 2.2, Math.sin(u * Math.PI));
       P.armF = lerp(P.armF, 2.0, Math.sin(u * Math.PI));
     }
     // turns to watch the cloth fly off, turns back to Pooh, turns to run
-    if (t > 23.85 && t < 25.8) s.facing = 1;
-    if (t > 26.25) s.facing = 1;
+
     if (t >= 26.8 && t < 34.3) {
       const amp = seg(t, 26.8, 27.1) * (1 - seg(t, 33.4, 34.05));
-      Object.assign(P, blendCycle(P, walkCycle((pigletX(t) - 470) / 78, amp, 1), amp, null));
-      s.z = lerp(90, 76, seg(t, 26.8, 28));
+      Object.assign(P, blendCycle(P, walkCycle((pigletX(t) - 470) / PIG_RUN, amp, 1), amp, null));
+      s.z = lerp(90, 58, seg(t, 26.8, 28));
       // a leap for the dipping cloth
       if (t > 30.7 && t < 31.35) {
         const u = (t - 30.7) / 0.65;
         P.bob -= Math.sin(u * Math.PI) * 95;
         P.armN = lerp(P.armN, 2.6, Math.sin(u * Math.PI));
         P.armF = lerp(P.armF, 2.4, Math.sin(u * Math.PI));
-        P.legN = 0.5 * Math.sin(u * Math.PI);
-        P.legF = -0.3 * Math.sin(u * Math.PI);
+        P.legN = lerp(P.legN, 0.5, Math.sin(u * Math.PI));
+        P.legF = lerp(P.legF, -0.3, Math.sin(u * Math.PI));
         P.head = -0.35 * Math.sin(u * Math.PI);
         P.earN = 0.7 * Math.sin(u * Math.PI);
         P.earF = 0.6 * Math.sin(u * Math.PI);
@@ -324,18 +372,21 @@
       if (t > 31.35 && t < 31.6) P.squash = 1 - 0.15 * Math.sin(((t - 31.35) / 0.25) * Math.PI);
     }
     if (t >= 34.0 && t < T.cut2) {
-      s.z = 76;
+      s.z = 58; // in front of the snagged cloth, so we see him hop for it
       // two hopeful hops by the gorse
       for (const h0 of [34.12, 34.55]) if (t > h0 && t < h0 + 0.36) P.bob -= Math.sin(((t - h0) / 0.36) * Math.PI) * 30;
       // steps back and turns to Pooh while he sits and thinks
-      if (t > 35.55 && t < 38.9) s.facing = -1;
-      if (t > 35.6 && t < 36.3) Object.assign(P, blendCycle(P, walkCycle((t - 35.6) * 2.2, 0.6, 0), 0.6, null));
+
+      if (t > 35.6 && t < 36.3) {
+        const amp = 0.6 * seg(t, 35.6, 35.72) * (1 - seg(t, 36.15, 36.3));
+        Object.assign(P, blendCycle(P, walkCycle((t - 35.6) * 2.2, amp, 0), amp, null));
+      }
     }
     if (t >= T.walk + 0.15 && t < T.cut2) {
       const amp = seg(t, T.walk + 0.15, T.walk + 0.45) * (1 - seg(t, 42.3, 42.85));
-      Object.assign(P, blendCycle(P, walkCycle((pigletX(t) - pigletX(T.walk + 0.15)) / 64, amp, 0.1), amp, null));
-      s.z = lerp(76, 96, seg(t, T.walk, 42.8));
-      if (t > 42.9) s.facing = -1;
+      Object.assign(P, blendCycle(P, walkCycle((pigletX(t) - pigletX(T.walk + 0.15)) / PIG_WALK, amp, 0.1), amp, null));
+      s.z = lerp(58, 96, seg(t, T.walk, 42.8));
+
     }
     if (t >= T.cut2) {
       s.z = 56;
@@ -358,31 +409,71 @@
     }
     const happy = (a, b) => t > a && t < b;
     if (happy(18.2, 18.9) || happy(43.4, 44.2) || happy(48.1, 49.2) || t > 52.3) P.eye = 2;
+    const tk = talking('piglet', t);
+    if (tk !== null) P.mouth = tk > 0.45 ? -1 : 0.3;
     return s;
   }
 
   /* ================================================================ the pot */
 
+  // Hand-offs: a pick glides the pot from the ground up into Pooh's paws, a place glides it
+  // back down, each over POT_GLIDE seconds, so it never jumps. [start, kind, ground spot]
+  const POT_GLIDE = 0.3;
+  const POT_MOVES = [
+    [9.55, 'pick', { x: 268, z: 22 }],
+    [10.16, 'place', { x: 312, z: 70 }],
+    [26.42, 'pick', { x: 312, z: 70 }],
+    [33.98, 'place', { x: 3232, z: 30 }],
+    [39.1, 'pick', { x: 3232, z: 30 }],
+    [42.8, 'place', null],
+  ];
+  const potSpot = (m) => m[2] || { x: poohX(42.8) + 70, z: 40 };
+  function potHeld(t) {
+    let held = false;
+    for (const m of POT_MOVES) {
+      if (t < m[0]) break;
+      held = m[1] === 'pick' ? t >= m[0] + POT_GLIDE : false;
+    }
+    return held;
+  }
+  function potGlide(t) {
+    for (const m of POT_MOVES) if (t >= m[0] && t < m[0] + POT_GLIDE) return { kind: m[1], k: (t - m[0]) / POT_GLIDE, spot: potSpot(m) };
+    return null;
+  }
+
   function pot(t, pS) {
-    if (t < T.potPick) return { x: 268, z: 22, tilt: 0 };
-    if (t < T.potPlace) return { held: true };
+    const gl = potGlide(t);
+    if (gl) return { glide: gl };
+    if (potHeld(t)) return { held: true };
+    if (t < 9.55) return { x: 268, z: 22, tilt: 0 };
     if (t < 26.42) {
       let tilt = 0;
       if (t > T.gust + 0.12) tilt = 0.16 * wobble(t, T.gust + 0.12, 2.4, 2.2, 1) + 0.05 * wobble(t, T.gust + 0.5, 3.2, 3, 1);
-      return { x: 312, z: 70, tilt, settle: t < T.potPlace + 0.25 ? seg(t, T.potPlace, T.potPlace + 0.25) : 1 };
+      return { x: 312, z: 70, tilt };
     }
-    if (t < 34.05) return { held: true };
-    if (t < 39.12) return { x: 3232, z: 30, tilt: 0 };
-    if (t < 43.0) return { held: true };
-    if (t < T.cut2) return { x: poohX(43) + 70, z: 40, tilt: 0 };
+    if (t < 39.1) return { x: 3232, z: 30, tilt: 0 };
+    if (t < T.cut2) { const sp = potSpot(POT_MOVES[5]); return { x: sp.x, z: sp.z, tilt: 0 }; }
     // the clearing: offered to Piglet, then set down in front
-    if (t < 45.7) return { x: 4142, z: 64, tilt: 0 };
+    if (t < 45.7) return { x: 4142, z: 64, tilt: 0, front: true };
     if (t < 48.6) {
       const k = seg(t, 45.7, 46.4, ease.inOutSine) * (1 - seg(t, 48.2, 48.6, ease.inOutSine));
-      return { x: lerp(4142, 4160, k), z: 64, y: 34 * k, tilt: 0.42 * k };
+      return { x: lerp(4142, 4160, k), z: 64, y: 34 * k, tilt: 0.42 * k, front: true };
     }
     const k = seg(t, 48.6, 48.95, ease.inOutSine);
     return { x: lerp(4142, 4142, k), z: lerp(64, 20, k), y: 10 * Math.sin(k * Math.PI), tilt: 0 };
+  }
+
+  /** Where the pot is drawn while it glides between the ground and Pooh's paws (world matrix). */
+  function potGlideMatrix(gl, pS) {
+    const [px, py] = groundXY(pS.x, pS.z);
+    const sc = 1 - pS.z * 0.0006;
+    const hand = new DOMMatrix().translate(px, py).scale(sc * pS.facing, sc).multiply(WP.chars.poohHoldMatrix(pS.pose)).scale(0.82);
+    const [gx, gy] = groundXY(gl.spot.x, gl.spot.z);
+    const gs = 0.82 * (1 - gl.spot.z * 0.0006);
+    const e = ease.inOutSine(gl.kind === 'pick' ? gl.k : 1 - gl.k);
+    const hx = hand.e, hy = hand.f, ha = Math.atan2(hand.b, hand.a), hs = Math.hypot(hand.a, hand.b);
+    const x = lerp(gx, hx, e), y = lerp(gy, hy, e) - Math.sin(e * Math.PI) * 10;
+    return new DOMMatrix().translate(x, y).rotate((lerp(0, ha, e) * 180) / Math.PI).scale(lerp(gs, hs, e));
   }
 
   /* ================================================================ bees */
@@ -524,6 +615,7 @@
     // ground plane (p = 1)
     const back = (x, z) => [x + z * 0.18, -z * 0.36];
     L.ground.push({ s: S.house, x: -330, y: -40, sc: 1, flip: 1, z: 110 });
+    L.ground.push({ s: S.houseTuft, x: -330, y: -40, sc: 1, flip: 1, z: 109.5, sway: 0.3 });
     for (let x = -700; x < 5400; x += 60 + R() * 110) {
       if (x > -520 && x < -150) continue;
       if (x > 3280 && x < 3560) continue;
@@ -550,10 +642,10 @@
     L.ground.sort((a, b) => (b.z ?? 0) - (a.z ?? 0));
     // things in front of the characters on the ground plane
     const [gx, gy] = back(592, 118);
-    L.groundFront.push({ s: S.tallGrass, x: gx, y: gy, sc: 1.1, flip: 1, sway: 1, until: 26 });
+    L.groundFront.push({ s: S.tallGrass, x: gx, y: gy, sc: 1.1, flip: 1, sway: 1, until: 26, z: 118 });
     for (const [x, z] of [[3930, -40], [4380, -30], [4480, -60]]) {
       const [px, py] = back(x, z);
-      L.groundFront.push({ s: pick(S.flowers), x: px, y: py, sc: 0.9, flip: 1, sway: 0.8, from: 39 });
+      L.groundFront.push({ s: pick(S.flowers), x: px, y: py, sc: 0.9, flip: 1, sway: 0.8, from: 39, z });
     }
     // foreground (p = 1.35): grass along the bottom and a few big trunks that sweep past in the chase
     for (let X = -1200; X < 5400; X += 150 + R() * 200) {
@@ -649,6 +741,14 @@
     const S = await WP.world.build((p) => progress(0.16 + p * 0.74));
     A = { S, L: layout(S) };
     bakeBands();
+    await progress(0.93);
+    const tiny = makeCanvas(1, 1).getContext('2d');
+    for (let i = 0; i <= DUR * 30; i++) {
+      const t = i / 30;
+      drawPooh(tiny, pooh(t).pose);
+      drawPiglet(tiny, piglet(t).pose);
+      if (i % 300 === 0) await progress(0.93 + 0.07 * (i / (DUR * 30)));
+    }
     await progress(1);
   }
 
@@ -748,7 +848,11 @@
     // ground contact shadows (on the scene, beneath the cut-outs)
     contactShadow(ctx, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
     if (!gS.rise || gS.rise < 40) contactShadow(ctx, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
-    if (!pt.held) contactShadow(ctx, pt.x, pt.z, 36, 0.3, pt.y || 0);
+    if (!pt.held && !pt.glide) contactShadow(ctx, pt.x, pt.z, 36, 0.3, pt.y || 0);
+    if (pt.glide) {
+      const e = ease.inOutSine(pt.glide.kind === 'pick' ? pt.glide.k : 1 - pt.glide.k);
+      contactShadow(ctx, pt.glide.spot.x, pt.glide.spot.z, 36, 0.3 * (1 - e), 40 * e);
+    }
     if (G && clothUp < 400) {
       const cx = G[Math.floor(G.length / 2)];
       contactShadow(ctx, cx[0], cx[2], 170, 0.22 * clamp(1 - clothUp / 400), cx[1]);
@@ -761,8 +865,20 @@
     a.clearRect(0, 0, W, H);
     a.setTransform(xf.z, 0, 0, xf.z, xf.ox, xf.oy);
     const items = [];
-    const clothFlat = G && clothUp < 6;
-    if (G && clothFlat) items.push({ z: 1e9, draw: () => CL.draw(a, G) });
+    const CP = G ? CL.pieces(G) : null;
+    if (CP) {
+      // the parts of the cloth lying on the grass go under everything...
+      CP.decal(a);
+      // ...with the shadows of whoever is standing on it (painted onto the cloth only)
+      a.save();
+      a.globalCompositeOperation = 'source-atop';
+      contactShadow(a, pS.x, pS.z, 75, 0.3, -Math.min(0, pS.pose.bob || 0));
+      if (!gS.rise || gS.rise < 40) contactShadow(a, gS.x, gS.z, 42, 0.28, -Math.min(0, gS.pose.bob || 0));
+      if (!pt.held && !pt.glide) contactShadow(a, pt.x, pt.z, 36, 0.3, pt.y || 0);
+      a.restore();
+      // ...and the parts off the ground are sorted with the characters by depth
+      for (const it of CP.items) items.push(it);
+    }
     const holdPot = (scale = 0.82) => (g) => {
       g.save();
       g.translate(36, -28);
@@ -771,8 +887,12 @@
       g.restore();
     };
     const bundle = (g) => {
+      // the folded cloth dips with the wind-up, then goes up with the fling; at 7.35 it
+      // is exactly where the opening cloth starts, so one becomes the other
+      const up = seg(t, 7.12, 7.35, ease.outQuad), dip = seg(t, 6.9, 7.12) * (1 - up);
       g.save();
-      g.translate(44, -58);
+      g.translate(44 + 14 * up, -58 + 10 * dip - 95 * up);
+      g.rotate(-0.3 * up);
       CL.drawBundle(g);
       g.restore();
     };
@@ -798,32 +918,42 @@
       }
       a.translate(px, py + (gS.rise || 0));
       const sc = 1 - gS.z * 0.0006;
-      a.scale(sc * gS.facing, sc);
+      a.scale(sc * (Math.abs(gS.facing) < 0.04 ? Math.sign(gS.facing || 1) * 0.04 : gS.facing), sc);
       drawPiglet(a, gS.pose);
       a.restore();
     } });
-    if (!pt.held) items.push({ z: pt.z + 0.5, draw: () => {
+    if (pt.glide) items.push({ z: pS.z - 0.5, draw: () => {
+      a.save();
+      a.transform(...(() => { const m = potGlideMatrix(pt.glide, pS); return [m.a, m.b, m.c, m.d, m.e, m.f]; })());
+      drawPot(a, {});
+      a.restore();
+    } });
+    if (!pt.held && !pt.glide) items.push({ z: pt.front ? pS.z - 0.5 : pt.z + 0.5, draw: () => {
       const [px, py] = groundXY(pt.x, pt.z, pt.y || 0);
       a.save();
-      a.translate(px, py + (1 - (pt.settle ?? 1)) * -14);
+      a.translate(px, py);
       const sc = 0.82 * (1 - pt.z * 0.0006);
       a.scale(sc, sc);
       drawPot(a, { tilt: pt.tilt });
       a.restore();
     } });
-    items.sort((i1, i2) => i2.z - i1.z);
-    for (const it of items) it.draw();
-    // the tall grass Piglet hides behind is part of the ground, in front of him
-    drawLayer(a, A.L.groundFront, xf, t, 1);
-    if (G && !clothFlat) CL.draw(a, G);
+    // bees and the grass in front of the path join the same depth order
     for (const b of bees(t)) {
-      const [bx, by] = groundXY(b.x, b.z, -b.y);
-      a.save();
-      a.translate(bx, by);
-      a.scale(1.9, 1.9);
-      drawBee(a, { t, seed: b.seed, rot: b.rot });
-      a.restore();
+      items.push({ z: b.z - 0.25, draw: () => {
+        const [bx, by] = groundXY(b.x, b.z, -b.y);
+        a.save();
+        a.translate(bx, by);
+        a.scale(1.9, 1.9);
+        drawBee(a, { t, seed: b.seed, rot: b.rot });
+        a.restore();
+      } });
     }
+    for (const it of A.L.groundFront) {
+      if ((it.until && t > it.until) || (it.from && t < it.from)) continue;
+      items.push({ z: it.z, draw: () => drawLayer(a, [it], xf, t, 1) });
+    }
+    items.sort((i1, i2) => i2.z - i1.z || (i2.sub ?? 0) - (i1.sub ?? 0));
+    for (const it of items) it.draw(a);
     // paper margin + soft shadow, worked only inside the actors' bounds
     const bb = actorBounds(xf, pS, gS, pt, G, t);
     const s = SIL.getContext('2d');
@@ -891,7 +1021,8 @@
     add(px - 190, py - 420, px + 190, py + 40);
     [px, py] = groundXY(gS.x, gS.z);
     add(px - 120, py - 300, px + 120, py + 40);
-    if (!pt.held) { [px, py] = groundXY(pt.x, pt.z, pt.y || 0); add(px - 70, py - 110, px + 70, py + 20); }
+    if (!pt.held && !pt.glide) { [px, py] = groundXY(pt.x, pt.z, pt.y || 0); add(px - 70, py - 110, px + 70, py + 20); }
+    if (pt.glide) { [px, py] = groundXY(pt.glide.spot.x, pt.glide.spot.z); add(px - 70, py - 110, px + 70, py + 20); }
     if (G) for (const v of G) { const [cx, cy] = CL.proj(v[0], v[1], v[2]); add(cx - 12, cy - 12, cx + 12, cy + 12); }
     for (const b of bees(t)) { const [bx, by] = groundXY(b.x, b.z, -b.y); add(bx - 20, by - 20, bx + 20, by + 20); }
     for (const it of A.L.groundFront) {
@@ -1171,9 +1302,10 @@
     const k = seg(t, T.plate[0], T.plate[1], ease.inOutCubic);
     // page behind the plate
     ctx.drawImage(PAPER, 0, 0);
-    const pw = lerp(W + 240, W * 0.64, k), ph = lerp(H + 136, H * 0.64, k);
+    // starts exactly full frame, so the first frame of the plate is the scene itself
+    const pw = lerp(W, W * 0.64, k), ph = lerp(H, H * 0.64, k);
     const cx = W / 2, cy = lerp(H / 2, 470, k);
-    // the scene, printed as a plate on the page with soft deckled edges
+    // the scene, printed as a plate on the page with soft deckled edges (the edges fade in)
     const plate = ACT.getContext('2d');
     plate.setTransform(1, 0, 0, 1, 0, 0);
     plate.globalCompositeOperation = 'source-over';
@@ -1183,6 +1315,12 @@
     plate.drawImage(PLATE_MASK, cx - pw / 2, cy - ph / 2, pw, ph);
     plate.globalCompositeOperation = 'source-over';
     ctx.drawImage(ACT, 0, 0);
+    const edge = 1 - seg(t, T.plate[0], T.plate[0] + 0.5);
+    if (edge > 0) {
+      ctx.globalAlpha = edge;
+      ctx.drawImage(SCENE, cx - pw / 2, cy - ph / 2, pw, ph);
+      ctx.globalAlpha = 1;
+    }
     inkText(ctx, 'The End', 960, 918, 'italic 76px "IM Fell English", Georgia, serif', seg(t, 57.5, 58.6, ease.linear));
     ctx.save();
     ctx.globalAlpha = seg(t, 58.4, 59.3) * 0.85;
@@ -1192,38 +1330,156 @@
 
   /* ================================================================ subtitles */
 
+  /*
+   * Subtitles as a caption slip pasted into the storybook: a deckled paper strip with a
+   * thin inner rule and leaf ornaments that unrolls from the middle. Each word inks in
+   * as it is spoken (unread words wait in pale sepia, so you can still read ahead).
+   * Characters' words are set in italic and coloured — honey-brown for Pooh, moss for
+   * Piglet — with a tiny drawing of whoever is speaking at the start of the slip.
+   * Cue format: { start, end, lines: [[{ w, t, sp }]] }, sp = 'n' | 'pooh' | 'piglet'.
+   */
+  const SUB = {
+    size: 44, lh: 56, padX: 58, padY: 17, bottom: 56,
+    ink: { n: '#2b2118', pooh: '#83531f', piglet: '#4f5e2c' },
+    pale: 'rgba(122, 90, 58, 0.52)',
+  };
+  const subFont = (sp) => (sp === 'n' ? `500 ${SUB.size}px "EB Garamond", Georgia, serif` : `italic 500 ${SUB.size + 1}px "EB Garamond", Georgia, serif`);
+  const SUB_LAYOUT = new Map();
+
+  function layoutCue(ctx, cue) {
+    if (SUB_LAYOUT.has(cue)) return SUB_LAYOUT.get(cue);
+    const space = (() => { ctx.font = subFont('n'); return ctx.measureText(' ').width; })();
+    const lines = cue.lines.map((words) => {
+      let x = 0;
+      const placed = words.map((wd, i) => {
+        ctx.font = subFont(wd.sp);
+        const ww = ctx.measureText(wd.w).width;
+        const g = { ...wd, x, ww };
+        x += ww + (i < words.length - 1 ? space : 0);
+        return g;
+      });
+      return { words: placed, width: x };
+    });
+    const first = cue.lines[0][0];
+    const icon = first && first.sp !== 'n' ? first.sp : null;
+    const inner = Math.max(...lines.map((l) => l.width)) + (icon ? 62 : 0);
+    const L = { lines, icon, w: inner + SUB.padX * 2, h: lines.length * SUB.lh + SUB.padY * 2 };
+    // deckled outline of the slip, seeded by the cue so it never shimmers
+    const R = rng(Math.floor(cue.start * 1000) + 7);
+    const pts = [];
+    const n = 36;
+    for (let i = 0; i < n; i++) {
+      const u = i / n;
+      const per = 2 * (L.w + L.h);
+      let d = u * per, x, y;
+      if (d < L.w) { x = d; y = 0; }
+      else if ((d -= L.w) < L.h) { x = L.w; y = d; }
+      else if ((d -= L.h) < L.w) { x = L.w - d; y = L.h; }
+      else { d -= L.w; x = 0; y = L.h - d; }
+      pts.push([x - L.w / 2 + (R() - 0.5) * 3.2, y - L.h / 2 + (R() - 0.5) * 3.2]);
+    }
+    L.path = WP.pathFrom(pts);
+    L.tilt = (R() - 0.5) * 0.008;
+    SUB_LAYOUT.set(cue, L);
+    return L;
+  }
+
+  function subIcon(ctx, sp, x, y) {
+    // a thumbnail head in the book's manner: Pooh's round head and ears, or Piglet's pointed ears and snout
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = SUB.ink[sp];
+    ctx.fillStyle = '#fbf6ea';
+    ctx.lineJoin = 'round';
+    if (sp === 'pooh') {
+      for (const ex of [-11, 10]) { ctx.beginPath(); ctx.arc(ex, -12, 6, 0, TAU); ctx.fill(); ctx.stroke(); }
+      ctx.beginPath(); ctx.ellipse(0, 0, 15, 14, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(11, 3, 7, 5.5, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = SUB.ink[sp];
+      ctx.beginPath(); ctx.ellipse(17, 1.5, 2.6, 2.2, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(4, -3, 1.6, 0, TAU); ctx.fill();
+    } else {
+      const ear = (dx, r) => { ctx.save(); ctx.translate(dx, -10); ctx.rotate(r); ctx.beginPath(); ctx.moveTo(-5, 3); ctx.quadraticCurveTo(-5, -9, 0, -15); ctx.quadraticCurveTo(5, -9, 5, 3); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); };
+      ear(-8, -0.9); ear(5, 0.1);
+      ctx.beginPath(); ctx.ellipse(0, 0, 12.5, 11, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(12, 2, 6.5, 4.5, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = SUB.ink[sp];
+      ctx.beginPath(); ctx.arc(4, -1, 1.5, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(18, 2, 0.9, 2.2, 0, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function subLeaf(ctx, x, y, dir) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir, 1);
+    ctx.strokeStyle = 'rgba(122, 90, 58, 0.75)';
+    ctx.fillStyle = 'rgba(125, 138, 78, 0.55)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(9, -1, 16, -7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6, -1); ctx.quadraticCurveTo(10, -9, 17, -9); ctx.quadraticCurveTo(13, -2, 6, -1); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(9, -2); ctx.quadraticCurveTo(14, 4, 20, 3); ctx.quadraticCurveTo(15, -2, 9, -2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawSubtitles(ctx, t, cues) {
     if (!cues) return;
     const cue = cues.find((c) => t >= c.start && t <= c.end);
-    if (!cue) return;
-    const a = Math.min(seg(t, cue.start, cue.start + 0.18), 1 - seg(t, cue.end - 0.2, cue.end));
-    const lines = cue.text.split('\n');
+    if (!cue || !cue.lines) return;
+    const L = layoutCue(ctx, cue);
+    const open = ease.outCubic(seg(t, cue.start, cue.start + 0.32, ease.linear));
+    const out = seg(t, cue.end - 0.28, cue.end);
     ctx.save();
-    ctx.globalAlpha = a;
-    ctx.font = '500 46px "EB Garamond", Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const lh = 56;
-    const widths = lines.map((l) => ctx.measureText(l).width);
-    const bw = Math.max(...widths) + 64, bh = lines.length * lh + 26;
-    const bx = W / 2 - bw / 2, by = H - 66 - bh;
-    // a slip of paper pasted on, like a caption in a scrapbook
-    ctx.save();
-    ctx.shadowColor = 'rgba(40,25,10,0.25)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 3;
-    ctx.fillStyle = 'rgba(248,241,224,0.9)';
+    ctx.translate(W / 2, H - SUB.bottom - L.h / 2 - out * 6);
+    ctx.rotate(L.tilt);
+    ctx.globalAlpha = 1 - out;
+    // unroll from the middle
     ctx.beginPath();
-    const R = rng(Math.floor(cue.start * 10));
-    ctx.moveTo(bx, by + R() * 4);
-    ctx.lineTo(bx + bw, by + R() * 4);
-    ctx.lineTo(bx + bw - R() * 4, by + bh);
-    ctx.lineTo(bx + R() * 4, by + bh - R() * 3);
-    ctx.closePath();
-    ctx.fill();
+    ctx.rect((-L.w / 2 - 8) * open, -L.h / 2 - 12, (L.w + 16) * open, L.h + 24);
+    ctx.clip();
+    ctx.save();
+    ctx.shadowColor = 'rgba(40, 25, 10, 0.28)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = 'rgba(249, 243, 228, 0.95)';
+    ctx.fill(L.path);
     ctx.restore();
-    ctx.fillStyle = '#2b2118';
-    lines.forEach((l, i) => ctx.fillText(l, W / 2, by + 13 + lh / 2 + i * lh + 1));
+    const gr = ctx.createLinearGradient(0, -L.h / 2, 0, L.h / 2);
+    gr.addColorStop(0, 'rgba(255, 252, 242, 0.5)');
+    gr.addColorStop(1, 'rgba(226, 211, 179, 0.35)');
+    ctx.fillStyle = gr;
+    ctx.fill(L.path);
+    // a printer's rule inside the edge, and leaves at each end
+    ctx.strokeStyle = 'rgba(122, 90, 58, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-L.w / 2 + 9, -L.h / 2 + 8, L.w - 18, L.h - 16);
+    subLeaf(ctx, -L.w / 2 + 14, 4, 1);
+    subLeaf(ctx, L.w / 2 - 14, 4, -1);
+    // words
+    const textLeft = -L.w / 2 + SUB.padX + (L.icon ? 62 : 0);
+    if (L.icon) subIcon(ctx, L.icon, -L.w / 2 + SUB.padX + 22, 2);
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    L.lines.forEach((line, li) => {
+      const x0 = textLeft + (L.w - SUB.padX * 2 - (L.icon ? 62 : 0) - line.width) / 2;
+      const y = -L.h / 2 + SUB.padY + SUB.lh * (li + 0.5) + 1;
+      for (const wd of line.words) {
+        const k = wd.t == null ? 1 : ease.outQuad(seg(t, wd.t - 0.06, wd.t + 0.16, ease.linear));
+        ctx.font = subFont(wd.sp);
+        if (k < 1) {
+          ctx.fillStyle = SUB.pale;
+          ctx.fillText(wd.w, x0 + wd.x, y);
+        }
+        if (k > 0) {
+          ctx.globalAlpha = (1 - out) * k;
+          ctx.fillStyle = SUB.ink[wd.sp] || SUB.ink.n;
+          ctx.fillText(wd.w, x0 + wd.x, y);
+          ctx.globalAlpha = 1 - out;
+        }
+      }
+    });
     ctx.restore();
   }
 
@@ -1243,6 +1499,13 @@
       drawScene(sctx, t);
       if (t < T.plate[0]) ctx.drawImage(SCENE, 0, 0);
       else drawEndPage(ctx, t);
+      // a soft dissolve into the picnic, from the moment just before the cut (everyone is still)
+      if (t >= T.cut2 && t < T.cut2 + DISSOLVE) {
+        drawScene(sctx, T.cut2 - 0.001);
+        ctx.globalAlpha = 1 - ease.inOutSine((t - T.cut2) / DISSOLVE);
+        ctx.drawImage(SCENE, 0, 0);
+        ctx.globalAlpha = 1;
+      }
       if (t < T.pageTurn[1]) {
         const pg = makeTitleSnapshot(t);
         drawPageTurn(ctx, t, pg);
@@ -1261,6 +1524,7 @@
   }
 
   const PROF = {};
+  const DISSOLVE = 0.7;
   let LITE = false;
   let SNAP = null;
   function makeTitleSnapshot(t) {
@@ -1291,10 +1555,10 @@
       }
     };
     steps('pooh', (t) => (poohX(t) - 222) / POOH_STRIDE + 0.1, RUN0 + 0.15, 33.95, POOH_STRIDE);
-    steps('piglet', (t) => (pigletX(t) - 470) / 78, 26.95, 33.95, 78);
+    steps('piglet', (t) => (pigletX(t) - 470) / PIG_RUN, 26.95, 33.95, PIG_RUN);
     steps('piglet', (t) => (578 - pigletX(t)) / 60, T.pigletOut + 0.1, T.pigletStop, 60);
     steps('pooh', (t) => (poohX(t) - poohX(T.walk)) / 115, T.walk + 0.2, 42.6, 115);
-    steps('piglet', (t) => (pigletX(t) - pigletX(T.walk + 0.15)) / 64, T.walk + 0.3, 42.7, 64);
+    steps('piglet', (t) => (pigletX(t) - pigletX(T.walk + 0.15)) / PIG_WALK, T.walk + 0.3, 42.7, PIG_WALK);
     ev.sort((a, b) => a.t - b.t);
     // wind strength, bee positions on screen and the cloth's screen position (20 Hz) for panning
     const wind100 = [], beesOnScreen = [], clothOnScreen = [];
@@ -1316,5 +1580,18 @@
     return { T, events: ev, wind100, beesOnScreen, clothOnScreen };
   }
 
-  WP.film = { PROF, init, render, camera, wind, pooh, piglet, pot, soundEvents, T, DUR, W, H };
+  /** The pot's base in world space at time t, however it is being carried (for checks). */
+  function potWorld(t) {
+    const pS = pooh(t), pt = pot(t, pS);
+    if (pt.glide) { const m = potGlideMatrix(pt.glide, pS); return [m.e, m.f]; }
+    if (pt.held) {
+      const [px, py] = groundXY(pS.x, pS.z);
+      const sc = 1 - pS.z * 0.0006;
+      const m = new DOMMatrix().translate(px, py).scale(sc * pS.facing, sc).multiply(WP.chars.poohHoldMatrix(pS.pose));
+      return [m.e, m.f];
+    }
+    return groundXY(pt.x, pt.z, pt.y || 0);
+  }
+
+  WP.film = { PROF, init, render, camera, wind, pooh, piglet, pot, potWorld, soundEvents, T, DUR, W, H };
 })();
